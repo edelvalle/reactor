@@ -1,0 +1,73 @@
+{% load reactor %}
+<x-todo-list id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+  <section class="todoapp">
+    <header class="header">
+      <h1>todos</h1>
+      <input
+        class="new-todo"
+        placeholder="What needs to be done?"
+        name="new_item"
+        autofocus
+        onkeypress="if (event.key == 'Enter') { send(this, 'add') }"
+      >
+    </header>
+    <!-- This section should be hidden by default and shown when there are todos -->
+    <section class="main">
+      {% if this.items %}
+        <input
+          id="toggle-all"
+          class="toggle-all"
+          type="checkbox"
+          name="toggle_all"
+          {{ this.all_items_are_completed|then:'checked' }}
+          onchange="send(this, 'toggle_all')"
+        >
+        <label for="toggle-all">Mark all as complete</label>
+        <ul class="todo-list">
+          <!-- These are here just to show the structure of the list items -->
+          <!-- List items should get the class `editing` when editing and `completed` when marked as completed -->
+          {% for item in this.items %}
+            {% component 'x-todo-item' id=item.id showing=this.showing %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+
+    {% if this.items %}
+      <footer class="footer">
+
+        {% component 'x-todo-counter' id=this.id items=this.items %}
+
+        <!-- Remove this if you don't implement routing -->
+        <ul class="filters">
+          <li>
+            <a
+              {% if this.showing == 'all' %}class="selected"{% endif %}
+              onclick="event.preventDefault(); send(this, 'show', {showing: 'all'})"
+            >
+              All
+            </a>
+          </li>
+          <li>
+            <a
+              {% if this.showing == 'active' %}class="selected"{% endif %}
+              onclick="event.preventDefault(); send(this, 'show', {showing: 'active'})"
+            >
+              Active
+            </a>
+          </li>
+          <li>
+            <a
+              {% if this.showing == 'completed' %}class="selected"{% endif %}
+              onclick="event.preventDefault(); send(this, 'show', {showing: 'completed'})"
+            >
+              Completed
+            </a>
+          </li>
+        </ul>
+        <!-- Hidden if no completed items are left ↓ -->
+        <button class="clear-completed" onclick="send(this, 'clear_completed')">Clear completed</button>
+      </footer>
+    {% endif %}
+
+</x-todo-list>

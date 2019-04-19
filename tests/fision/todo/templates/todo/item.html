@@ -1,0 +1,29 @@
+{% load reactor %}
+<x-todo-item id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+  <li class="
+      {{ this.item.completed|then:'completed' }}
+      {{ this.editing|then:'editing' }}
+      {{ this.is_visible|else:'hidden' }}
+    "
+  >
+    <div class="view">
+      <input
+        class="toggle"
+        type="checkbox"
+        name="completed"
+        {{ this.item.completed|then:'checked' }}
+        onchange="send(this, 'completed')"
+      >
+      <label onclick="send(this, 'toggle_editing')">{{ this.item.text }}</label>
+      <button onclick="send(this, 'destroy')" class="destroy"></button>
+    </div>
+    <input
+      class="edit"
+      name="text"
+      value="{{ this.item.text }}"
+      onblur="send(this, 'save')"
+      onkeypress="if (event.key == 'Enter') { send(this, 'save') }"
+      {{ this.editing|then:'focus' }}
+    >
+  </li>
+</x-todo-item>

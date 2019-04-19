@@ -38,7 +38,9 @@ setup(
         'channels>=2.2.0,<2.3',
     ],
     extras_require={
-        'development': [
+        'test': [
+            'pytest-django',
+            'pytest-asyncio',
             'rjsmin',
         ],
     },
