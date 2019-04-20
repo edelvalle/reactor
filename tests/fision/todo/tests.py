@@ -90,3 +90,46 @@ class LiveTesting(ChannelsLiveServerTestCase):
         assert response['type'] == 'render'
         assert response['id'] == str(task.id)
         assert 'checked' in response['html']
+
+        ws.send(json.dumps({
+            'command': 'user_event',
+            'payload': {
+                'tag_name': 'x-todo-item',
+                'name': 'completed',
+                'state': dict(task_state, completed=False),
+            }
+        }))
+
+        response = json.loads(ws.recv())
+        task.refresh_from_db()
+        assert not task.completed
+        assert response['type'] == 'render'
+        assert response['id'] == str(task.id)
+        assert 'checked' not in response['html']
+        assert 'focus' not in response['html']
+
+        ws.send(json.dumps({
+            'command': 'user_event',
+            'payload': {
+                'tag_name': 'x-todo-item',
+                'name': 'toggle_editing',
+                'state': dict(task_state),
+            }
+        }))
+        response = json.loads(ws.recv())
+        assert response['type'] == 'render'
+        assert response['id'] == str(task.id)
+        assert 'focus' in response['html']
+
+        task_state = dict(task_state, editing=True)
+        ws.send(json.dumps({
+            'command': 'user_event',
+            'payload': {
+                'tag_name': 'x-todo-item',
+                'name': 'save',
+                'state': dict(task_state, text='New text'),
+            }
+        }))
+        response = json.loads(ws.recv())
+        task.refresh_from_db()
+        assert task.text == 'New text'
