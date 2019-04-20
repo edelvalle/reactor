@@ -1,11 +1,63 @@
 from uuid import uuid4
+
 from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.template.loader import render_to_string
 from django.template.context import Context
 from django.utils.safestring import mark_safe
 from django.utils.functional import cached_property
 from django.db.transaction import on_commit
+from channels.layers import get_channel_layer
+
+
+class ComponentHerarchy(dict):
+
+    def __init__(self, context):
+        super().__init__()
+        self._context = context
+
+    def get_or_create(self, _name, id=None, **state):
+        id = str(id or '')
+        component = (
+            self.get(id) or
+            Component.build(_name, context=self._context, id=id)
+        )
+        component.mount(**state)
+        self[component.id] = component
+        return component
+
+    def look_up(self, id):
+        component = self.get(id)
+        if component:
+            return component
+        else:
+            for component in self.values():
+                component = component._children.look_up(id)
+                if component:
+                    return component
+
+    @property
+    def subscriptions(self):
+        return set().union(*[c.subscriptions for c in self.all])
+
+    @property
+    def all(self):
+        for component in self.values():
+            yield component
+            yield from component._children.all
+
+    def dispatch_user_event(self, name, state):
+        component = self.look_up(state['id'])
+        if component:
+            return True, component.dispatch(name, state)
+        return False, None
+
+    def propagate_update(self, origin):
+        for component in self.values():
+            if origin in component.subscriptions:
+                html = component.refresh()
+                yield {'id': component.id, 'html': html}
+                continue
+            yield from component._children.propagate_update(origin)
 
 
 class Component:
@@ -24,8 +76,12 @@ class Component:
         self._context = context
         self._destroy_sent = False
         self._last_sent_html = ''
+        self._children = ComponentHerarchy(context=context)
+        self._old_subcriptions = set()
         self.subscriptions = set()
-        self.id = id or str(uuid4())
+        self.id = str(id or uuid4())
+
+    # channels
 
     @cached_property
     def _channel_name(self):
@@ -37,7 +93,7 @@ class Component:
 
     def dispatch(self, name, args=None):
         getattr(self, f'receive_{name}')(**(args or {}))
-        self.send_render()
+        return self.render()
 
     # State persistence & front-end communication
     def mount(self, **state):
@@ -56,18 +112,7 @@ class Component:
 
     def refresh(self):
         self.mount(**self.serialize())
-
-    def send_render(self):
-        if not self._destroy_sent:
-            html = self.render()
-            if self._last_sent_html != html and self._channel_name:
-                self._last_sent_html = html
-                send_to_channel(
-                    self._channel_name,
-                    'render',
-                    id=self.id,
-                    html=html,
-                )
+        return self.render()
 
     def send_destroy(self):
         self._destroy_sent = True
@@ -76,17 +121,26 @@ class Component:
                 self._channel_name,
                 'remove',
                 id=self.id,
-                tag_name=self._tag_name
             )
 
-    def render(self):
+    def send_update_subscriptions(self):
+        if self._channel_name and self._old_subcriptions != self.subscriptions:
+            self._old_subcriptions = set(self.subscriptions)
+            send_to_channel(self._channel_name, 'update_subscriptions')
+
+    def render(self, in_template=False):
         if self._destroy_sent:
-            return ''
+            html = ''
         else:
             context = Context(self._context).update({'this': self})
-            return mark_safe(
+            html = mark_safe(
                 render_to_string(self.template_name, context).strip()
             )
+
+        if in_template or self._last_sent_html != html:
+            self._last_sent_html = html
+            self.send_update_subscriptions()
+            return html
 
 
 def send_to_channel(_channel_name, type, **kwargs):

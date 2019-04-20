@@ -1,3 +1,4 @@
+origin = new Date()
 
 class Channel
   constructor: (@url, options={}) ->
@@ -53,24 +54,17 @@ channel.open()
 channel.on 'open', ->
   console.log 'ON-LINE'
   for el in document.querySelectorAll(reactor_components.join(','))
-    el.connect echo_render: true
+    el.connect()
 
 
 channel.on 'message', ({type, id, html}) ->
-  console.log '<<< ', type.toUpperCase(), id
+  console.log '<<<', type.toUpperCase(), id
   if type is 'render'
     el = document.getElementById(id)
     if el?
+      console.log new Date() - origin
       window.requestAnimationFrame ->
-        morphdom el, html,
-          onBeforeElUpdated: (fromEl, toEl) ->
-            state_changed = (
-              fromEl isnt el and
-              fromEl.getAttribute('state') isnt toEl.getAttribute('state')
-            )
-            if state_changed
-              toEl.connect()
-            return true
+        morphdom el, html
         el.querySelector('[focus]')?.focus()
   else if type is 'remove'
     document.getElementById(id)?.remove()
@@ -86,16 +80,24 @@ for component in reactor_components
       @connect()
 
     disconnectedCallback: ->
-      channel.send 'leave', id: @id, tag_name: @tag_name
+      channel.send 'leave', id: @id
 
-    connect: (options={}) ->
-      options.echo_render ?= false
-      console.log '>>> JOIN', @tag_name
-      state = JSON.parse @getAttribute 'state'
-      channel.send 'join',
-        tag_name: @tag_name
-        state: state
-        echo_render: options.echo_render
+    is_root: -> not @parent_component()
+
+    parent_component: ->
+      component = @parentElement
+      while component
+        if component.dispatch?
+          return component
+        component = component.parentElement
+
+    connect: ->
+      if @is_root()
+        console.log '>>> JOIN', @tag_name
+        state = JSON.parse @getAttribute 'state'
+        channel.send 'join',
+          tag_name: @tag_name
+          state: state
 
     dispatch: (name, args) ->
       state = @serialize()
@@ -103,8 +105,8 @@ for component in reactor_components
         state[k] = v
 
       console.log '>>> USER_EVENT', @tag_name, name, state
+      origin = new Date()
       channel.send 'user_event',
-        tag_name: @tag_name
         name: name
         state: state
 

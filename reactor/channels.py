@@ -1,12 +1,10 @@
-from functools import reduce
-from collections import defaultdict
 import logging
 
 from asgiref.sync import async_to_sync
 from django.db.transaction import atomic
 from channels.generic.websocket import JsonWebsocketConsumer
 
-from .component import Component
+from .component import ComponentHerarchy
 
 log = logging.getLogger('reactor')
 
@@ -15,22 +13,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.components = defaultdict(dict)
         self.subcriptions = set()
-
-    @property
-    def all_components(self):
-        for components_of_a_type in self.components.values():
-            for component in components_of_a_type.values():
-                yield component
-
-    @property
-    def all_components_subscriptions(self):
-        return reduce(
-            lambda x, y: x.union(y),
-            [c.subscriptions for c in self.all_components],
-            set()
-        )
 
     # Group operations
 
@@ -50,8 +33,9 @@ class ReactorConsumer(JsonWebsocketConsumer):
         )
         self.subcriptions.discard(room_name)
 
-    def update_subscriptions(self):
-        all_subcriptions = self.all_components_subscriptions
+    def update_subscriptions(self, *args, **kwargs):
+        log.debug(f'>> UPDATE SUBCRIPTIONS')
+        all_subcriptions = self.root_component.subscriptions
         for room in all_subcriptions - self.subcriptions:
             self.subscribe(room)
         for room in self.subcriptions - all_subcriptions:
@@ -62,6 +46,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def connect(self):
         super().connect()
         self.scope['channel_name'] = self.channel_name
+        self.root_component = ComponentHerarchy(context=self.scope)
         log.debug(f':: CONNECT {self.channel_name}')
 
     def disconnect(self, close_code):
@@ -78,48 +63,39 @@ class ReactorConsumer(JsonWebsocketConsumer):
         log.debug(f'>>> {name.upper()} {payload}')
         getattr(self, f'receive_{name}')(**payload)
 
-    def receive_join(self, tag_name, state, echo_render=False):
-        component = (
-            self.components[tag_name].get(state['id']) or
-            Component.build(tag_name, context=self.scope, id=state['id'])
-        )
-        component.mount(**state)
-        self.components[tag_name][component.id] = component
-        self.update_subscriptions()
-        if echo_render:
-            component.send_render()
+    def receive_join(self, tag_name, state):
+        component = self.root_component.get_or_create(tag_name, **state)
+        html = component.render()
+        self.render({'id': component.id, 'html': html})
 
-    def receive_user_event(self, tag_name, name, state):
-        component = self.components[tag_name].get(state['id'])
-        if component:
-            component.dispatch(name, state)
+    def receive_user_event(self, name, state):
+        component_found, html = self.root_component.dispatch_user_event(
+            name, state)
+        if component_found:
+            self.render({'id': state['id'], 'html': html})
         else:
             self.remove({
                 'type': 'remove',
                 'id': state['id'],
-                'tag_name': tag_name
             })
 
-    def receive_leave(self, id, tag_name, **kwargs):
-        if self.components[tag_name].pop(id, None):
+    def receive_leave(self, id, **kwargs):
+        if self.root_component.pop(id, None):
             self.update_subscriptions()
 
     # Internal event
 
     def update(self, event):
         log.debug(f'>>> UPDATE {event}')
-        origin = event['origin']
-        for component in self.all_components:
-            if origin in component.subscriptions:
-                component.refresh()
-                component.send_render()
-        self.update_subscriptions()
+        for event in self.root_component.propagate_update(event['origin']):
+            self.render(event)
 
     # Broadcasters
 
     def render(self, event):
-        log.debug(f"<<< RENDER {event['id']}")
-        self.send_json(event)
+        if event['html'] is not None:
+            log.debug(f"<<< RENDER {event['id']}")
+            self.send_json(dict(event, type='render'))
 
     def remove(self, event):
         log.debug(f"<<< REMOVE {event['id']}")

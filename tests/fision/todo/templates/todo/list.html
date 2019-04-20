@@ -36,7 +36,9 @@
     {% if this.items %}
       <footer class="footer">
 
-        {% component 'x-todo-counter' id=this.id items=this.items %}
+        {% with counter_id=this.id|concat:'counter' %}
+          {% component 'x-todo-counter' id=counter_id items=this.items %}
+        {% endwith %}
 
         <!-- Remove this if you don't implement routing -->
         <ul class="filters">

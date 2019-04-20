@@ -29,9 +29,13 @@ def reactor_header():
 
 @register.simple_tag(takes_context=True)
 def component(context, _name, id=None, **kwargs):
-    component = Component.build(_name, context=context, id=id)
-    component.mount(**kwargs)
-    return component.render()
+    parent = context.get('this')  # type: Component
+    if parent:
+        component = parent._children.get_or_create(_name, id=id, **kwargs)
+    else:
+        component = Component.build(_name, context=context, id=id)
+        component.mount(**kwargs)
+    return component.render(in_template=True)
 
 
 @register.filter
