@@ -59,15 +59,16 @@ channel.on 'open', ->
 
 channel.on 'message', ({type, id, html}) ->
   console.log '<<<', type.toUpperCase(), id
-  if type is 'render'
-    el = document.getElementById(id)
-    if el?
-      console.log new Date() - origin
+  el = document.getElementById(id)
+  if el?
+    console.log new Date() - origin
+    if type is 'render'
       window.requestAnimationFrame ->
         morphdom el, html
         el.querySelector('[focus]')?.focus()
-  else if type is 'remove'
-    document.getElementById(id)?.remove()
+    else if type is 'remove'
+      window.requestAnimationFrame ->
+        el.remove()
 
 
 for component in reactor_components

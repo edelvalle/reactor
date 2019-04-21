@@ -1,5 +1,5 @@
 {% load reactor %}
-<x-todo-item id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+<x-todo-item id="{{ this.id }}">
   <li class="
       {{ this.item.completed|then:'completed' }}
       {{ this.editing|then:'editing' }}

@@ -72,6 +72,12 @@ class Component:
         cls._tag_name = name
         return super().__init_subclass__()
 
+    # Constructors
+
+    @classmethod
+    def build(cls, tag_name, *args, **kwargs):
+        return cls._all[tag_name](*args, **kwargs)
+
     def __init__(self, context, id=None):
         self._context = context
         self._destroy_sent = False
@@ -81,21 +87,22 @@ class Component:
         self.subscriptions = set()
         self.id = str(id or uuid4())
 
-    # channels
+    # User events
 
     @cached_property
     def _channel_name(self):
         return self._context.get('channel_name')
-
-    @classmethod
-    def build(cls, tag_name, *args, **kwargs):
-        return cls._all[tag_name](*args, **kwargs)
 
     def dispatch(self, name, args=None):
         getattr(self, f'receive_{name}')(**(args or {}))
         return self.render()
 
     # State persistence & front-end communication
+
+    def refresh(self):
+        self.mount(**self.serialize())
+        return self.render()
+
     def mount(self, **state):
         """
         Override so given an initial state be able to  re-create or update the
@@ -110,10 +117,6 @@ class Component:
         """
         return dict(id=self.id)
 
-    def refresh(self):
-        self.mount(**self.serialize())
-        return self.render()
-
     def send_destroy(self):
         self._destroy_sent = True
         if self._channel_name:
@@ -122,11 +125,6 @@ class Component:
                 'remove',
                 id=self.id,
             )
-
-    def send_update_subscriptions(self):
-        if self._channel_name and self._old_subcriptions != self.subscriptions:
-            self._old_subcriptions = set(self.subscriptions)
-            send_to_channel(self._channel_name, 'update_subscriptions')
 
     def render(self, in_template=False):
         if self._destroy_sent:
@@ -141,6 +139,11 @@ class Component:
             self._last_sent_html = html
             self.send_update_subscriptions()
             return html
+
+    def send_update_subscriptions(self):
+        if self._channel_name and self._old_subcriptions != self.subscriptions:
+            self._old_subcriptions = set(self.subscriptions)
+            send_to_channel(self._channel_name, 'update_subscriptions')
 
 
 def send_to_channel(_channel_name, type, **kwargs):

@@ -94,10 +94,13 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def render(self, event):
         if event['html'] is not None:
-            log.debug(f"<<< RENDER {event['id']}")
-            self.send_json(dict(event, type='render'))
+            if event['html']:
+                log.debug(f"<<< RENDER {event['id']}")
+                self.send_json(dict(event, type='render'))
+            else:
+                self.remove(event)
 
     def remove(self, event):
         log.debug(f"<<< REMOVE {event['id']}")
         self.receive_leave(**event)
-        self.send_json(event)
+        self.send_json(dict(event, type='remove'))
