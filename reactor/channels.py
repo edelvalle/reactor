@@ -17,29 +17,25 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     # Group operations
 
-    def subscribe(self, room_name):
-        log.debug(f':: SUBSCRIBE {self.channel_name} {room_name}')
-        async_to_sync(self.channel_layer.group_add)(
-            room_name,
-            self.channel_name
-        )
-        self.subcriptions.add(room_name)
+    def subscribe(self, event):
+        room_name = event['room_name']
+        if room_name not in self.subcriptions:
+            log.debug(f':: SUBSCRIBE {self.channel_name} {room_name}')
+            async_to_sync(self.channel_layer.group_add)(
+                room_name,
+                self.channel_name
+            )
+            self.subcriptions.add(room_name)
 
-    def unsubscribe(self, room_name):
-        log.debug(f':: UNSUBSCRIBE {self.channel_name} {room_name}')
-        async_to_sync(self.channel_layer.group_discard)(
-            room_name,
-            self.channel_name
-        )
-        self.subcriptions.discard(room_name)
-
-    def update_subscriptions(self, *args, **kwargs):
-        log.debug(f'>> UPDATE SUBCRIPTIONS')
-        all_subcriptions = self.root_component.subscriptions
-        for room in all_subcriptions - self.subcriptions:
-            self.subscribe(room)
-        for room in self.subcriptions - all_subcriptions:
-            self.unsubscribe(room)
+    def unsubscribe(self, event):
+        room_name = event['room_name']
+        if room_name in self.subcriptions:
+            log.debug(f':: UNSUBSCRIBE {self.channel_name} {room_name}')
+            async_to_sync(self.channel_layer.group_discard)(
+                room_name,
+                self.channel_name
+            )
+            self.subcriptions.discard(room_name)
 
     # Channel events
 
@@ -50,8 +46,8 @@ class ReactorConsumer(JsonWebsocketConsumer):
         log.debug(f':: CONNECT {self.channel_name}')
 
     def disconnect(self, close_code):
-        while self.subcriptions:
-            self.unsubscribe(self.subcriptions.pop())
+        for room in list(self.subcriptions):
+            self.unsubscribe({'room_name': room})
         log.debug(f':: DISCONNECT {self.channel_name}')
 
     # Dispatching
@@ -80,15 +76,20 @@ class ReactorConsumer(JsonWebsocketConsumer):
             })
 
     def receive_leave(self, id, **kwargs):
-        if self.root_component.pop(id, None):
-            self.update_subscriptions()
+        self.root_component.pop(id)
 
     # Internal event
 
     def update(self, event):
         log.debug(f'>>> UPDATE {event}')
-        for event in self.root_component.propagate_update(event['origin']):
+        origin = event['origin']
+        no_one_responded_to_this_update = True
+        for event in self.root_component.propagate_update(origin):
             self.render(event)
+            no_one_responded_to_this_update = False
+
+        if no_one_responded_to_this_update:
+            self.unsubscribe({'room_name': origin})
 
     # Broadcasters
 

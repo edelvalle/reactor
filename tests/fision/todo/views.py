@@ -13,7 +13,7 @@ class XTodoList(Component):
 
     def mount(self, showing='all', **kwargs):
         self.showing = showing
-        self.subscriptions.add('item.new')
+        self.subscribe('item.new')
 
     def serialize(self):
         return dict(
@@ -47,7 +47,7 @@ class XTodoCounter(Component):
 
     def mount(self, items=None, *args, **kwargs):
         self.items = items or Item.objects.all()
-        self.subscriptions.add('item')
+        self.subscribe('item')
 
 
 class XTodoItem(Component):
@@ -58,7 +58,7 @@ class XTodoItem(Component):
         self.showing = showing
         self.item = item or Item.objects.filter(id=self.id).first()
         if self.item:
-            self.subscriptions.add(f'item.{self.item.id}')
+            self.subscribe(f'item.{self.item.id}')
         else:
             self.send_destroy()
 

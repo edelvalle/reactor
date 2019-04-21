@@ -30,20 +30,20 @@ class ComponentHerarchy(dict):
         if component:
             return component
         else:
-            for component in self.values():
+            for component in list(self.values()):
                 component = component._children.look_up(id)
                 if component:
                     return component
 
-    @property
-    def subscriptions(self):
-        return set().union(*[c.subscriptions for c in self.all])
-
-    @property
-    def all(self):
-        for component in self.values():
-            yield component
-            yield from component._children.all
+    def pop(self, id, default=None):
+        component = super().pop(id, default)
+        if component:
+            return component
+        else:
+            for component in list(self.values()):
+                component = component._children.pop(id, default=default)
+                if component:
+                    return component
 
     def dispatch_user_event(self, name, state):
         component = self.look_up(state['id'])
@@ -52,12 +52,12 @@ class ComponentHerarchy(dict):
         return False, None
 
     def propagate_update(self, origin):
-        for component in self.values():
+        for component in list(self.values()):
             if origin in component.subscriptions:
                 html = component.refresh()
                 yield {'id': component.id, 'html': html}
-                continue
-            yield from component._children.propagate_update(origin)
+            else:
+                yield from component._children.propagate_update(origin)
 
 
 class Component:
@@ -83,11 +83,21 @@ class Component:
         self._destroy_sent = False
         self._last_sent_html = ''
         self._children = ComponentHerarchy(context=context)
-        self._old_subcriptions = set()
         self.subscriptions = set()
         self.id = str(id or uuid4())
 
     # User events
+
+    def subscribe(self, room_name):
+        self.subscriptions.add(room_name)
+        send_to_channel(
+            self._channel_name,
+            'subscribe',
+            room_name=room_name
+        )
+
+    def unsubscribe(self, room_name):
+        self.subscriptions.discard(room_name)
 
     @cached_property
     def _channel_name(self):
@@ -119,12 +129,11 @@ class Component:
 
     def send_destroy(self):
         self._destroy_sent = True
-        if self._channel_name:
-            send_to_channel(
-                self._channel_name,
-                'remove',
-                id=self.id,
-            )
+        send_to_channel(
+            self._channel_name,
+            'remove',
+            id=self.id,
+        )
 
     def render(self, in_template=False):
         if self._destroy_sent:
@@ -137,26 +146,22 @@ class Component:
 
         if in_template or self._last_sent_html != html:
             self._last_sent_html = html
-            self.send_update_subscriptions()
             return html
-
-    def send_update_subscriptions(self):
-        if self._channel_name and self._old_subcriptions != self.subscriptions:
-            self._old_subcriptions = set(self.subscriptions)
-            send_to_channel(self._channel_name, 'update_subscriptions')
 
 
 def send_to_channel(_channel_name, type, **kwargs):
-    on_commit(
-        lambda: async_to_sync(get_channel_layer().send)(
-            _channel_name, dict(type=type, **kwargs)
+    if _channel_name:
+        on_commit(
+            lambda: async_to_sync(get_channel_layer().send)(
+                _channel_name, dict(type=type, **kwargs)
+            )
         )
-    )
 
 
 def send_to_group(_whom, type, **kwargs):
-    on_commit(
-        lambda: async_to_sync(get_channel_layer().group_send)(
-            _whom, dict(type=type, origin=_whom, **kwargs)
+    if _whom:
+        on_commit(
+            lambda: async_to_sync(get_channel_layer().group_send)(
+                _whom, dict(type=type, origin=_whom, **kwargs)
+            )
         )
-    )
