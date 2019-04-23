@@ -17,12 +17,13 @@ class ComponentHerarchy(dict):
 
     def get_or_create(self, _name, id=None, **state):
         id = str(id or '')
-        component = (
-            self.get(id) or
-            Component.build(_name, context=self._context, id=id)
-        )
-        component.mount(**state)
-        self[component.id] = component
+        component = self.get(id)  # type: Component
+        if component:
+            component.refresh(**state)
+        else:
+            component = Component.build(_name, context=self._context, id=id)
+            component.mount(**state)
+            self[component.id] = component
         return component
 
     def look_up(self, id):
@@ -54,7 +55,8 @@ class ComponentHerarchy(dict):
     def propagate_update(self, origin):
         for component in list(self.values()):
             if origin in component.subscriptions:
-                html = component.refresh()
+                component.refresh()
+                html = component.render()
                 yield {'id': component.id, 'html': html}
             else:
                 yield from component._children.propagate_update(origin)
@@ -89,12 +91,13 @@ class Component:
     # User events
 
     def subscribe(self, room_name):
-        self.subscriptions.add(room_name)
-        send_to_channel(
-            self._channel_name,
-            'subscribe',
-            room_name=room_name
-        )
+        if room_name not in self.subscriptions:
+            self.subscriptions.add(room_name)
+            send_to_channel(
+                self._channel_name,
+                'subscribe',
+                room_name=room_name
+            )
 
     def unsubscribe(self, room_name):
         self.subscriptions.discard(room_name)
@@ -109,9 +112,8 @@ class Component:
 
     # State persistence & front-end communication
 
-    def refresh(self):
-        self.mount(**self.serialize())
-        return self.render()
+    def refresh(self, **state):
+        self.mount(**dict(self.serialize(), **state))
 
     def mount(self, **state):
         """
