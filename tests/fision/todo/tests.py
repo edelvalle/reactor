@@ -1,10 +1,27 @@
-import websocket
 import json
-from django.test import TestCase, Client
+import websocket
+from pyquery import PyQuery as q
 
+from django.test import TestCase, Client
+from django.urls import path
+from channels.routing import URLRouter
+
+from reactor.channels import ReactorConsumer
 from channels.testing import ChannelsLiveServerTestCase
 
 from .models import Item
+
+application = URLRouter([
+    path("reactor", ReactorConsumer),
+])
+
+
+class JsonWebsocket(websocket.WebSocket):
+    def send_json(self, data):
+        return self.send(json.dumps(data))
+
+    def receive_json(self, *args, **kwargs):
+        return json.loads(self.recv(*args, **kwargs))
 
 
 class TestNormalRendering(TestCase):
@@ -22,114 +39,135 @@ class TestNormalRendering(TestCase):
 
 
 class LiveTesting(ChannelsLiveServerTestCase):
-    def test_how_it_works(self):
-        assert Item.objects.count() == 0
-        host = self.live_server_url[len('http://'):]
-        ws = websocket.WebSocket()
-        ws.connect(f'ws://{host}/reactor')
-        ws.send(json.dumps({
-            'command': 'join',
-            'payload': {
-                'tag_name': 'x-todo-list',
-                'state': {'id': 'someid', 'showing': 'all'},
-                'echo_render': True,
-            }
-        }))
-        response = json.loads(ws.recv())
-        assert response['type'] == 'render'
-        assert response['id'] == 'someid'
-        assert 'html' in response
-        assert 'left' not in response['html']
 
-        ws.send(json.dumps({
-            'command': 'user_event',
-            'payload': {
-                'tag_name': 'x-todo-list',
-                'name': 'add',
-                'state': {'id': 'someid', 'new_item': 'First task'},
+    def test_render_and_join(self):
+        assert Item.objects.count() == 0
+
+        html_response = self.client.get('/')
+        assert html_response.status_code == 200
+
+        ws = JsonWebsocket()
+        ws.connect(f'{self.live_server_ws_url}/reactor')
+
+        state = {'id': 'someid', 'showing': 'all'}
+        ws.send_json({
+                'command': 'join',
+                'payload': {
+                    'tag_name': 'x-todo-list',
+                    'state': state,
+                },
             }
-        }))
-        response = json.loads(ws.recv())
-        task = Item.objects.first()  # type: Item
-        assert task
-        assert not task.completed
-        assert response['type'] == 'render'
-        assert response['id'] == 'someid'
-        assert 'First task' in response['html']
-        assert 'checked' not in response['html']
-        task_state = {
-            'id': str(task.id),
-            'editing': False,
-            'showing': 'all',
-        }
-        assert (
-            json.dumps(task_state).replace('"', '&quot;') in response['html']
         )
 
-        ws.send(json.dumps({
-            'command': 'join',
-            'payload': {
-                'tag_name': 'x-todo-item',
-                'state': task_state,
-            }
-        }))
+        # Check render is received for same id and same state
+        doc = self.assert_render(ws, 'someid')
+        todo_list = doc('#someid')
+        assert todo_list.attr['id'] == 'someid'
+        assert json.loads(todo_list.attr['state']) == state
 
-        # Mark task as completed
-        ws.send(json.dumps({
-            'command': 'user_event',
-            'payload': {
-                'tag_name': 'x-todo-item',
-                'name': 'completed',
-                'state': dict(task_state, completed=True),
-            }
-        }))
+        # Add new item
+        self.send_user_event(
+            ws, 'add',
+            {'id': 'someid', 'new_item': 'First task'}
+        )
 
-        response = json.loads(ws.recv())
-        task.refresh_from_db()
-        assert task.completed
+        # There was an item crated and rendered
+        doc = self.assert_render(ws, 'someid')
+        assert Item.objects.count() == 1
+        assert len(doc('x-todo-item')) == 1
+        todo_item_id = doc('x-todo-item')[0].get('id')
+        todo_item_label = doc('x-todo-item label')[0]
+        assert todo_item_label.text == 'First task'
+
+        item = Item.objects.first()
+        assert str(item.id) == todo_item_id
+        assert item.text == 'First task'
+
+        # Click title to edit it
+        assert len(doc('x-todo-item li.editing')) == 0, 'Not in read mode'
+        self.send_user_event(ws, 'toggle_editing', {'id': todo_item_id})
+        doc = self.assert_render(ws, todo_item_id)
+        assert len(doc('x-todo-item li.editing')) == 1, 'Not in edition mode'
+
+        # Edit item with a new text
+        self.send_user_event(
+            ws, 'save',
+            {'id': todo_item_id, 'text': 'Edited task'}
+        )
+        doc = self.assert_render(ws, todo_item_id)
+        assert len(doc('x-todo-item li.editing')) == 0, 'Not in read mode'
+        todo_item_label = doc('x-todo-item label')[0]
+        assert todo_item_label.text == 'Edited task'
+        item.refresh_from_db()
+        assert item.text == 'Edited task'
+
+        # Mark item as completed
+        assert len(doc('x-todo-item li.completed')) == 0
+        self.send_user_event(
+            ws, 'completed',
+            {'id': todo_item_id, 'completed': True}
+        )
+        doc = self.assert_render(ws, todo_item_id)
+        assert len(doc('x-todo-item li.completed')) == 1
+        # Counter was rendered as 0
+        doc = self.assert_render(ws, 'someid-counter')
+        assert doc('strong')[0].text == '0'
+
+        # Switch to "only active tasks" filtering
+        self.send_user_event(ws, 'show', {'id': 'someid', 'showing': 'active'})
+        doc = self.assert_render(ws, 'someid')
+        assert len(doc('x-todo-item li.hidden')) == 1
+
+        # Switch to "only done tasks" filtering
+        self.send_user_event(
+            ws, 'show',
+            {'id': 'someid', 'showing': 'completed'}
+        )
+        doc = self.assert_render(ws, 'someid')
+        assert len(doc('x-todo-item')) == 1
+        assert len(doc('x-todo-item li.hidden')) == 0
+
+        # Switch to "all tasks" filtering
+        self.send_user_event(ws, 'show', {'id': 'someid', 'showing': 'all'})
+        doc = self.assert_render(ws, 'someid')
+        assert len(doc('x-todo-item')) == 1
+        assert len(doc('x-todo-item li.hidden')) == 0
+
+        # Add another task
+        self.send_user_event(
+            ws, 'add',
+            {'id': 'someid', 'new_item': 'Another task'}
+        )
+        doc = self.assert_render(ws, 'someid')
+        assert len(doc('x-todo-item')) == 2
+        assert len(doc('x-todo-item li.completed')) == 1
+
+        # Remove completed tasks removes just one task
+        self.send_user_event(ws, 'clear_completed', {'id': 'someid'})
+        doc = self.assert_render(ws, 'someid')
+        self.assert_remove(ws, todo_item_id)
+        self.assert_remove(ws, todo_item_id)
+        assert len(doc('x-todo-item')) == 1
+        assert len(doc('x-todo-item li.completed')) == 0
+
+        ws.close()
+
+    def assert_render(self, ws, component_id):
+        response = ws.receive_json()
         assert response['type'] == 'render'
-        assert response['id'] == str(task.id)
-        assert 'checked' in response['html']
+        assert response['id'] == component_id
+        return q(response['html'])
 
-        ws.send(json.dumps({
+    def assert_remove(self, ws, component_id):
+        response = ws.receive_json()
+        assert response['type'] == 'remove'
+        assert response['id'] == component_id
+
+    def send_user_event(self, ws, name, state):
+        ws.send_json({
             'command': 'user_event',
             'payload': {
-                'tag_name': 'x-todo-item',
-                'name': 'completed',
-                'state': dict(task_state, completed=False),
+                'name': name,
+                'state': state,
             }
-        }))
-
-        response = json.loads(ws.recv())
-        task.refresh_from_db()
-        assert not task.completed
-        assert response['type'] == 'render'
-        assert response['id'] == str(task.id)
-        assert 'checked' not in response['html']
-        assert 'focus' not in response['html']
-
-        ws.send(json.dumps({
-            'command': 'user_event',
-            'payload': {
-                'tag_name': 'x-todo-item',
-                'name': 'toggle_editing',
-                'state': dict(task_state),
-            }
-        }))
-        response = json.loads(ws.recv())
-        assert response['type'] == 'render'
-        assert response['id'] == str(task.id)
-        assert 'focus' in response['html']
-
-        task_state = dict(task_state, editing=True)
-        ws.send(json.dumps({
-            'command': 'user_event',
-            'payload': {
-                'tag_name': 'x-todo-item',
-                'name': 'save',
-                'state': dict(task_state, text='New text'),
-            }
-        }))
-        response = json.loads(ws.recv())
-        task.refresh_from_db()
-        assert task.text == 'New text'
+        })
