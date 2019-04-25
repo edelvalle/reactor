@@ -53,9 +53,9 @@ class ReactorConsumer(JsonWebsocketConsumer):
     # Dispatching
 
     @atomic
-    def receive_json(self, command):
-        name = command['command']
-        payload = command['payload']
+    def receive_json(self, request):
+        name = request['command']
+        payload = request['payload']
         log.debug(f'>>> {name.upper()} {payload}')
         getattr(self, f'receive_{name}')(**payload)
 
