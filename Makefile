@@ -9,8 +9,13 @@ build-deps:
 build:
 	./node_modules/.bin/coffee -cmb .
 	python -m rjsmin <reactor/static/reactor.js >reactor/static/reactor.min.js
-    mv reactor/static/reactor.min.js reactor/static/reactor.js
+	mv reactor/static/reactor.min.js reactor/static/reactor.js
 	python setup.py sdist
 
 install:
 	python setup.py develop
+	pip install flake8 pytest-django websocket-client pyquery rjsmin
+
+test:
+	flake8 --max-line-length=80 reactor
+	py.test
