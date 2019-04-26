@@ -5,3 +5,4 @@ __pycache__/
 reactor/static/reactor.*
 !reactor/static/reactor.coffee
 node_modules/*
+*.sqlite3
