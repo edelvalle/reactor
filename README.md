@@ -4,6 +4,8 @@ Reactor enables you to do something similar to Phoenix framework LiveView using 
 
 ## Installation and setup
 
+You require Python >=3.6. 
+
 [Setup up your django-channels](https://channels.readthedocs.io/en/latest/installation.html) project beforehand.
 
 Install reactor:
@@ -83,13 +85,13 @@ class XCounter(Component):
     # This method is called after __init__ passing the initial state of the 
     # Component, this method is responsible taking the state of the component
     # and construct or reconstruct the component. Sometimes loading things from
-    # the database like in the tood-demo app https://bit.ly/2ZlMvP3
+    # the database like tests of this project.
     def mount(self, amount=0, **kwargs):
         self.amount = amount
 
     # This method is used to capture the essence of the state of a component
     # state, so it can be reconstructed at any given time on the future.
-    # By passing what ever is returned by this method to `mount`
+    # By passing what ever is returned by this method to `mount`.
     def serialize(self):
         return dict(id=self.id, amount=self.amount)
 
@@ -133,4 +135,30 @@ And the index template being:
 </html>
 ```
 
-Components can be nested, there is no problem with that. You just need to create one inside another.
+## More complex components
+
+I made a TODO list app using models and everything and signaling from the model to the respective channels to update the interface when something get's created, modified or deleted.
+
+This example contains nested components and some more complex interactions than a simple counter, the app is in the `/tests/` directory.
+
+
+## Development & Contribution
+
+Clone the repo and create a virtualenv or any other contained environment, get inside the repo directory, build the development environment and the run tests.
+
+```bash
+git clone git@github.com:edelvalle/reactor.git
+cd reactor
+make install
+make test
+```
+
+If you wanna run the inside Django project that is used for testing do:
+
+```bash
+make
+cd tests
+python manage.py runserver
+```
+
+Enjoy!
