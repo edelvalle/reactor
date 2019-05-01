@@ -98,21 +98,24 @@ for component in reactor_components
           state: state
 
     apply_diff: (html_diff) ->
+      console.log new Date() - origin
       html = []
       cursor = 0
+      console.log html_diff
       for diff in html_diff
         if typeof diff is 'string'
           html.push diff
         else if diff < 0
           cursor -= diff
         else
-          html.push @_last_received_html[cursor..cursor + diff]
+          html.push @_last_received_html[cursor...cursor + diff]
           cursor += diff
-      console.log new Date() - origin
-      @_last_received_html = html.join ''
-      window.requestAnimationFrame =>
-        morphdom this, @_last_received_html
-        @querySelector('[focus]')?.focus()
+      html = html.join ''
+      if @_last_received_html isnt html
+        @_last_received_html = html
+        window.requestAnimationFrame =>
+          morphdom this, @_last_received_html
+          @querySelector('[focus]')?.focus()
 
     dispatch: (name, args) ->
       state = @serialize()

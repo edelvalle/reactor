@@ -147,7 +147,7 @@ class Component:
 
     def render_diff(self):
         html = self.render()
-        if self._last_sent_html != html:
+        if html and self._last_sent_html != html:
             diff = self._diff.diff_main(self._last_sent_html, html)
             self._last_sent_html = html
             return [
