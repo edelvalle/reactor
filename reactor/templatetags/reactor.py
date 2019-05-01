@@ -35,7 +35,7 @@ def component(context, _name, id=None, **kwargs):
     else:
         component = Component.build(_name, context=context, id=id)
         component.mount(**kwargs)
-    return component.render(in_template=True)
+    return component.render()
 
 
 @register.filter

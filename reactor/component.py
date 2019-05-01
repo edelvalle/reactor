@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from diff_match_patch import diff_match_patch
+
 from asgiref.sync import async_to_sync
 from django.template.loader import render_to_string
 from django.template.context import Context
@@ -56,8 +58,8 @@ class ComponentHerarchy(dict):
         for component in list(self.values()):
             if origin in component.subscriptions:
                 component.refresh()
-                html = component.render()
-                yield {'id': component.id, 'html': html}
+                html_diff = component.render_diff()
+                yield {'id': component.id, 'html_diff': html_diff}
             else:
                 yield from component._children.propagate_update(origin)
 
@@ -65,6 +67,11 @@ class ComponentHerarchy(dict):
 class Component:
     template_name = ''
     _all = {}
+    _diff_actions = {
+        -1: lambda content: -len(content),
+        0: lambda content: len(content),
+        1: lambda content: content
+    }
 
     def __init_subclass__(cls, name=None):
         name = name or cls.__name__
@@ -84,6 +91,7 @@ class Component:
         self._context = context
         self._destroy_sent = False
         self._last_sent_html = ''
+        self._diff = diff_match_patch()
         self._children = ComponentHerarchy(context=context)
         self.subscriptions = set()
         self.id = str(id or uuid4())
@@ -108,7 +116,7 @@ class Component:
 
     def dispatch(self, name, args=None):
         getattr(self, f'receive_{name}')(**(args or {}))
-        return self.render()
+        return self.render_diff()
 
     # State persistence & front-end communication
 
@@ -137,7 +145,17 @@ class Component:
             id=self.id,
         )
 
-    def render(self, in_template=False):
+    def render_diff(self):
+        html = self.render()
+        if self._last_sent_html != html:
+            diff = self._diff.diff_main(self._last_sent_html, html)
+            self._last_sent_html = html
+            return [
+                self._diff_actions[action](content)
+                for action, content in diff
+            ]
+
+    def render(self):
         if self._destroy_sent:
             html = ''
         else:
@@ -145,10 +163,7 @@ class Component:
             html = mark_safe(
                 render_to_string(self.template_name, context).strip()
             )
-
-        if in_template or self._last_sent_html != html:
-            self._last_sent_html = html
-            return html
+        return html
 
 
 def send_to_channel(_channel_name, type, **kwargs):
