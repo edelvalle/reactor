@@ -114,7 +114,7 @@ for component in reactor_components
       if @_last_received_html isnt html
         @_last_received_html = html
         window.requestAnimationFrame =>
-          morphdom this, @_last_received_html
+          morphdom this, html
           @querySelector('[focus]')?.focus()
 
     dispatch: (name, args) ->

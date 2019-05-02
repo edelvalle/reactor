@@ -61,4 +61,4 @@ def else_(value, false_result):
     if not value:
         return false_result
     else:
-        return value or ''
+        return ''
