@@ -56,8 +56,8 @@ def then(value, true_result):
         return ''
 
 
-@register.filter(name='else')
-def else_(value, false_result):
+@register.filter
+def ifnot(value, false_result):
     if not value:
         return false_result
     else:

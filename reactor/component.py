@@ -67,11 +67,6 @@ class ComponentHerarchy(dict):
 class Component:
     template_name = ''
     _all = {}
-    _diff_actions = {
-        -1: lambda content: -len(content),
-        0: lambda content: len(content),
-        1: lambda content: content
-    }
 
     def __init_subclass__(cls, name=None):
         name = name or cls.__name__
@@ -144,6 +139,12 @@ class Component:
             'remove',
             id=self.id,
         )
+
+    _diff_actions = {
+        -1: lambda content: -len(content),
+        0: lambda content: len(content),
+        1: lambda content: content
+    }
 
     def render_diff(self):
         html = self.render()
