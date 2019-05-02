@@ -140,6 +140,14 @@ class Component:
             id=self.id,
         )
 
+    def send(self, _name, id=None, **kwargs):
+        send_to_channel(
+            self._channel_name,
+            'send_component',
+            name=_name,
+            state=dict(kwargs, id=id or self.id),
+        )
+
     _diff_actions = {
         -1: lambda content: -len(content),
         0: lambda content: len(content),

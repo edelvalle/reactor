@@ -91,6 +91,10 @@ class ReactorConsumer(JsonWebsocketConsumer):
         if no_one_responded_to_this_update:
             self.unsubscribe({'room_name': origin})
 
+    def send_component(self, event):
+        log.debug(f'>>> DISPATCH {event}')
+        self.receive_user_event(event['name'], event['state'])
+
     # Broadcasters
 
     def render(self, event):
