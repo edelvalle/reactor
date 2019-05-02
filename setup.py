@@ -22,6 +22,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'channels>=2.2.0,<2.3',
+        'diff-match-patch>=20181111',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
