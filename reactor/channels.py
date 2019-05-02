@@ -61,14 +61,14 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def receive_join(self, tag_name, state):
         component = self.root_component.get_or_create(tag_name, **state)
-        html = component.render()
-        self.render({'id': component.id, 'html': html})
+        html_diff = component.render_diff()
+        self.render({'id': component.id, 'html_diff': html_diff})
 
     def receive_user_event(self, name, state):
-        component_found, html = self.root_component.dispatch_user_event(
+        component_found, html_diff = self.root_component.dispatch_user_event(
             name, state)
         if component_found:
-            self.render({'id': state['id'], 'html': html})
+            self.render({'id': state['id'], 'html_diff': html_diff})
         else:
             self.remove({
                 'type': 'remove',
@@ -91,15 +91,16 @@ class ReactorConsumer(JsonWebsocketConsumer):
         if no_one_responded_to_this_update:
             self.unsubscribe({'room_name': origin})
 
+    def send_component(self, event):
+        log.debug(f'>>> DISPATCH {event}')
+        self.receive_user_event(event['name'], event['state'])
+
     # Broadcasters
 
     def render(self, event):
-        if event['html'] is not None:
-            if event['html']:
-                log.debug(f"<<< RENDER {event['id']}")
-                self.send_json(dict(event, type='render'))
-            else:
-                self.remove(event)
+        if event['html_diff']:
+            log.debug(f"<<< RENDER {event['id']}")
+            self.send_json(dict(event, type='render'))
 
     def remove(self, event):
         log.debug(f"<<< REMOVE {event['id']}")

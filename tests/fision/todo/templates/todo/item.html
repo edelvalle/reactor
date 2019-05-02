@@ -3,7 +3,7 @@
   <li class="
       {{ this.item.completed|then:'completed' }}
       {{ this.editing|then:'editing' }}
-      {{ this.is_visible|else:'hidden' }}
+      {{ this.is_visible|ifnot:'hidden' }}
     "
   >
     <div class="view">

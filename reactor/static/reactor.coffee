@@ -57,25 +57,22 @@ channel.on 'open', ->
     el.connect()
 
 
-channel.on 'message', ({type, id, html}) ->
+channel.on 'message', ({type, id, html_diff}) ->
   console.log '<<<', type.toUpperCase(), id
   el = document.getElementById(id)
   if el?
-    console.log new Date() - origin
     if type is 'render'
-      window.requestAnimationFrame ->
-        morphdom el, html
-        el.querySelector('[focus]')?.focus()
+      el.apply_diff(html_diff)
     else if type is 'remove'
       window.requestAnimationFrame ->
         el.remove()
-
 
 for component in reactor_components
   class Component extends HTMLElement
     constructor: ->
       super()
       @tag_name = @tagName.toLowerCase()
+      @_last_received_html = ''
 
     connectedCallback: ->
       @connect()
@@ -99,6 +96,26 @@ for component in reactor_components
         channel.send 'join',
           tag_name: @tag_name
           state: state
+
+    apply_diff: (html_diff) ->
+      console.log new Date() - origin
+      html = []
+      cursor = 0
+      console.log html_diff
+      for diff in html_diff
+        if typeof diff is 'string'
+          html.push diff
+        else if diff < 0
+          cursor -= diff
+        else
+          html.push @_last_received_html[cursor...cursor + diff]
+          cursor += diff
+      html = html.join ''
+      if @_last_received_html isnt html
+        @_last_received_html = html
+        window.requestAnimationFrame =>
+          morphdom this, html
+          @querySelector('[focus]')?.focus()
 
     dispatch: (name, args) ->
       state = @serialize()

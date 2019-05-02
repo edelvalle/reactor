@@ -1,27 +1,19 @@
 import json
-import websocket
-from pyquery import PyQuery as q
 
 from django.test import TestCase, Client
 from django.urls import path
+
 from channels.routing import URLRouter
+from channels.testing import ChannelsLiveServerTestCase
 
 from reactor.channels import ReactorConsumer
-from channels.testing import ChannelsLiveServerTestCase
+from reactor.tests import ClientComponent, JsonWebSocket
 
 from .models import Item
 
 application = URLRouter([
     path("reactor", ReactorConsumer),
 ])
-
-
-class JsonWebsocket(websocket.WebSocket):
-    def send_json(self, data):
-        return self.send(json.dumps(data))
-
-    def receive_json(self, *args, **kwargs):
-        return json.loads(self.recv(*args, **kwargs))
 
 
 class TestNormalRendering(TestCase):
@@ -46,33 +38,22 @@ class LiveTesting(ChannelsLiveServerTestCase):
         html_response = self.client.get('/')
         assert html_response.status_code == 200
 
-        ws = JsonWebsocket()
+        ws = JsonWebSocket()
         ws.connect(f'{self.live_server_ws_url}/reactor')
 
-        state = {'id': 'someid', 'showing': 'all'}
-        ws.send_json({
-                'command': 'join',
-                'payload': {
-                    'tag_name': 'x-todo-list',
-                    'state': state,
-                },
-            }
-        )
+        x_list = ClientComponent('x-todo-list', id='someid', showing='all')
+        x_list.send_join(ws)
 
         # Check render is received for same id and same state
-        doc = self.assert_render(ws, 'someid')
+        doc = x_list.assert_render(ws)
         todo_list = doc('#someid')
-        assert todo_list.attr['id'] == 'someid'
-        assert json.loads(todo_list.attr['state']) == state
+        assert json.loads(todo_list.attr['state']) == x_list.state
 
         # Add new item
-        self.send_user_event(
-            ws, 'add',
-            {'id': 'someid', 'new_item': 'First task'}
-        )
+        x_list.send_user_event(ws, 'add', new_item='First task')
 
         # There was an item crated and rendered
-        doc = self.assert_render(ws, 'someid')
+        doc = x_list.assert_render(ws)
         assert Item.objects.count() == 1
         assert len(doc('x-todo-item')) == 1
         todo_item_id = doc('x-todo-item')[0].get('id')
@@ -84,90 +65,69 @@ class LiveTesting(ChannelsLiveServerTestCase):
         assert item.text == 'First task'
 
         # Click title to edit it
-        assert len(doc('x-todo-item li.editing')) == 0, 'Not in read mode'
-        self.send_user_event(ws, 'toggle_editing', {'id': todo_item_id})
-        doc = self.assert_render(ws, todo_item_id)
-        assert len(doc('x-todo-item li.editing')) == 1, 'Not in edition mode'
+        assert len(doc('x-todo-item li.editing')) == 0
+        x_first_item = ClientComponent('x-todo-item', id=todo_item_id)
+        x_first_item.send_user_event(ws, 'toggle_editing')
+        doc = x_first_item.assert_render(ws)
+        assert len(doc('x-todo-item li.editing')) == 1
 
         # Edit item with a new text
-        self.send_user_event(
-            ws, 'save',
-            {'id': todo_item_id, 'text': 'Edited task'}
-        )
-        doc = self.assert_render(ws, todo_item_id)
+        x_first_item.send_user_event(ws, 'save', text='Edited task')
+        doc = x_first_item.assert_render(ws)
         assert len(doc('x-todo-item li.editing')) == 0, 'Not in read mode'
         todo_item_label = doc('x-todo-item label')[0]
         assert todo_item_label.text == 'Edited task'
         item.refresh_from_db()
         assert item.text == 'Edited task'
 
+        # As an item changed counter changes and renders because has no cache
+        x_todo_counter = ClientComponent('x-todo-counter', id='someid-counter')
+        doc = x_todo_counter.assert_render(ws)
+        assert doc('strong')[0].text == '1'
+
         # Mark item as completed
         assert len(doc('x-todo-item li.completed')) == 0
-        self.send_user_event(
-            ws, 'completed',
-            {'id': todo_item_id, 'completed': True}
-        )
-        doc = self.assert_render(ws, todo_item_id)
+        x_first_item.send_user_event(ws, 'completed', completed=True)
+        doc = x_first_item.assert_render(ws)
         assert len(doc('x-todo-item li.completed')) == 1
-        # Counter was rendered as 0
-        doc = self.assert_render(ws, 'someid-counter')
+
+        # Counter is rendered as 0
+        doc = x_todo_counter.assert_render(ws)
         assert doc('strong')[0].text == '0'
 
         # Switch to "only active tasks" filtering
-        self.send_user_event(ws, 'show', {'id': 'someid', 'showing': 'active'})
-        doc = self.assert_render(ws, 'someid')
+        x_list.send_user_event(ws, 'show', showing='active')
+        doc = x_list.assert_render(ws)
         assert len(doc('x-todo-item li.hidden')) == 1
 
         # Switch to "only done tasks" filtering
-        self.send_user_event(
-            ws, 'show',
-            {'id': 'someid', 'showing': 'completed'}
-        )
-        doc = self.assert_render(ws, 'someid')
+        x_list.send_user_event(ws, 'show', showing='completed')
+        doc = x_list.assert_render(ws)
         assert len(doc('x-todo-item')) == 1
         assert len(doc('x-todo-item li.hidden')) == 0
 
         # Switch to "all tasks" filtering
-        self.send_user_event(ws, 'show', {'id': 'someid', 'showing': 'all'})
-        doc = self.assert_render(ws, 'someid')
+        x_list.send_user_event(ws, 'show', showing='all')
+        doc = x_list.assert_render(ws)
         assert len(doc('x-todo-item')) == 1
         assert len(doc('x-todo-item li.hidden')) == 0
 
         # Add another task
-        self.send_user_event(
-            ws, 'add',
-            {'id': 'someid', 'new_item': 'Another task'}
-        )
-        doc = self.assert_render(ws, 'someid')
+        x_list.send_user_event(ws, 'add', new_item='Another task')
+        doc = x_list.assert_render(ws)
         assert len(doc('x-todo-item')) == 2
         assert len(doc('x-todo-item li.completed')) == 1
 
+        # Cache miss in the counter so re-render
+        doc = x_todo_counter.assert_render(ws)
+        assert doc('strong')[0].text == '1'
+
         # Remove completed tasks removes just one task
-        self.send_user_event(ws, 'clear_completed', {'id': 'someid'})
-        doc = self.assert_render(ws, 'someid')
-        self.assert_remove(ws, todo_item_id)
-        self.assert_remove(ws, todo_item_id)
+        x_list.send_user_event(ws, 'clear_completed')
+        doc = x_list.assert_render(ws)
         assert len(doc('x-todo-item')) == 1
-        assert len(doc('x-todo-item li.completed')) == 0
+        assert len(doc('x-todo-item.completed')) == 0
+
+        x_first_item.assert_remove(ws)
 
         ws.close()
-
-    def assert_render(self, ws, component_id):
-        response = ws.receive_json()
-        assert response['type'] == 'render'
-        assert response['id'] == component_id
-        return q(response['html'])
-
-    def assert_remove(self, ws, component_id):
-        response = ws.receive_json()
-        assert response['type'] == 'remove'
-        assert response['id'] == component_id
-
-    def send_user_event(self, ws, name, state):
-        ws.send_json({
-            'command': 'user_event',
-            'payload': {
-                'name': name,
-                'state': state,
-            }
-        })
