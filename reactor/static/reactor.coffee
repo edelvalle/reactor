@@ -1,4 +1,14 @@
 origin = new Date()
+FOCUSABLE_INPUTS = [
+  'text'
+  'textarea'
+  'number'
+  'email'
+  'password'
+  'search'
+  'tel'
+  'url'
+]
 
 class Channel
   constructor: (@url, options={}) ->
@@ -114,7 +124,17 @@ for component in reactor_components
       if @_last_received_html isnt html
         @_last_received_html = html
         window.requestAnimationFrame =>
-          morphdom this, html
+          morphdom this, html,
+            onBeforeElUpdated: (from_el, to_el) ->
+              # Prevent updating the input that has the focus
+              if (from_el.type in FOCUSABLE_INPUTS and
+                    from_el is document.activeElement and
+                    'reactor-orverride-value' not in to_el.getAttributeNames())
+                to_el.getAttributeNames().forEach (name) ->
+                  from_el.setAttribute(name, to_el.getAttribute(name))
+                from_el.readOnly = to_el.readOnly
+                return false
+              return true
           @querySelector('[focus]')?.focus()
 
     dispatch: (name, args) ->
@@ -129,13 +149,40 @@ for component in reactor_components
         state: state
 
     serialize: (state) ->
+      # Serialize the fields with name attribute and creates a dictionary
+      # with them. It support nested name spaces.
+      #
+      # Ex1:
+      #   <input name="a" value="q">
+      #   <input name="b" value="x">
+      # Result: {a: "q", b: "x"}
+      #
+      # Ex2:
+      #   <input name="query" value="q">
+      #   <input name="person.name" value="John">
+      #   <input name="person.age" value="99">
+      # Result: {query: "q", person: {name: "John", value: "99"}}
+
       state ?= {id: @id}
       for {type, name, value, checked} in @querySelectorAll('[name]')
-        state[name] = if type is 'checkbox' then checked else value
+        value = if type is 'checkbox' then checked else value
+        for part in name.split('.').reverse()
+          obj = {}
+          obj[part] = value
+          value = obj
+        satte = merge_objects state, value
       state
 
   customElements.define(component, Component)
 
+
+merge_objects = (target, source) ->
+  for k, v of source
+    if typeof target[k] is 'object'
+      merge_objects target[k], v
+    else
+      target[k] = v
+  target
 
 send = (element, name, args) ->
   while element
