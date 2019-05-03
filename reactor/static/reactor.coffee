@@ -150,11 +150,24 @@ for component in reactor_components
     serialize: (state) ->
       state ?= {id: @id}
       for {type, name, value, checked} in @querySelectorAll('[name]')
-        state[name] = if type is 'checkbox' then checked else value
+        value = if type is 'checkbox' then checked else value
+        for part in name.split('.').reverse()
+          obj = {}
+          obj[part] = value
+          value = obj
+        satte = merge_objects state, value
       state
 
   customElements.define(component, Component)
 
+
+merge_objects = (target, source) ->
+  for k, v of source
+    if target[k]?
+      merge_objects target[k], v
+    else
+      target[k] = v
+  target
 
 send = (element, name, args) ->
   while element
