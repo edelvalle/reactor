@@ -1,4 +1,14 @@
 origin = new Date()
+FOCUSABLE_INPUTS = [
+  'text'
+  'textarea'
+  'number'
+  'email'
+  'password'
+  'search'
+  'tel'
+  'url'
+]
 
 class Channel
   constructor: (@url, options={}) ->
@@ -114,7 +124,16 @@ for component in reactor_components
       if @_last_received_html isnt html
         @_last_received_html = html
         window.requestAnimationFrame =>
-          morphdom this, html
+          morphdom this, html,
+            onBeforeElUpdated: (from_el, to_el) ->
+              # Prevent updating the input that has the focus
+              if (from_el.type in FOCUSABLE_INPUTS and
+                    from_el is document.activeElement)
+                to_el.getAttributeNames().forEach (name) ->
+                  from_el.setAttribute(name, to_el.getAttribute(name))
+                from_el.readOnly = to_el.readOnly
+                return false
+              return true
           @querySelector('[focus]')?.focus()
 
     dispatch: (name, args) ->
