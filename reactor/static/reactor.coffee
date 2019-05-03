@@ -128,7 +128,8 @@ for component in reactor_components
             onBeforeElUpdated: (from_el, to_el) ->
               # Prevent updating the input that has the focus
               if (from_el.type in FOCUSABLE_INPUTS and
-                    from_el is document.activeElement)
+                    from_el is document.activeElement and
+                    'reactor-orverride-value' not in to_el.getAttributeNames())
                 to_el.getAttributeNames().forEach (name) ->
                   from_el.setAttribute(name, to_el.getAttribute(name))
                 from_el.readOnly = to_el.readOnly
@@ -148,6 +149,20 @@ for component in reactor_components
         state: state
 
     serialize: (state) ->
+      # Serialize the fields with name attribute and creates a dictionary
+      # with them. It support nested name spaces.
+      #
+      # Ex1:
+      #   <input name="a" value="q">
+      #   <input name="b" value="x">
+      # Result: {a: "q", b: "x"}
+      #
+      # Ex2:
+      #   <input name="query" value="q">
+      #   <input name="person.name" value="John">
+      #   <input name="person.age" value="99">
+      # Result: {query: "q", person: {name: "John", value: "99"}}
+
       state ?= {id: @id}
       for {type, name, value, checked} in @querySelectorAll('[name]')
         value = if type is 'checkbox' then checked else value
@@ -163,7 +178,7 @@ for component in reactor_components
 
 merge_objects = (target, source) ->
   for k, v of source
-    if target[k]?
+    if typeof target[k] is 'object'
       merge_objects target[k], v
     else
       target[k] = v
