@@ -137,13 +137,13 @@ for component in reactor_components
               # Prevent updating the input that has the focus
               if (from_el.type in FOCUSABLE_INPUTS and
                     from_el is document.activeElement and
-                    'reactor-orverride-value' not in to_el.getAttributeNames())
+                    'reactor-override-value' not in to_el.getAttributeNames())
                 to_el.getAttributeNames().forEach (name) ->
                   from_el.setAttribute(name, to_el.getAttribute(name))
                 from_el.readOnly = to_el.readOnly
                 return false
               return true
-          @querySelector('[focus]')?.focus()
+          @querySelector('[reactor-focus]')?.focus()
 
     dispatch: (name, args) ->
       state = @serialize()

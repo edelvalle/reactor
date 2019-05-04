@@ -23,7 +23,7 @@
       value="{{ this.item.text }}"
       onblur="send(this, 'save')"
       onkeypress="if (event.key == 'Enter') { send(this, 'save') }"
-      {{ this.editing|then:'focus' }}
+      {{ this.editing|then:'reactor-focus' }}
     >
   </li>
 </x-todo-item>
