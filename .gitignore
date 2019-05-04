@@ -2,8 +2,6 @@
 *.eggs/
 dist/
 __pycache__/
-reactor/static/reactor.*
-!reactor/static/reactor.coffee
-!reactor/static/reactor.css
+reactor/static/reactor.js*
 node_modules/*
 *.sqlite3
