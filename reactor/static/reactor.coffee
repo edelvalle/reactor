@@ -10,9 +10,8 @@ FOCUSABLE_INPUTS = [
   'url'
 ]
 
-class Channel
-  constructor: (@url, options={}) ->
-    @retry_interval = options.retry_interval or 1000
+class ReactorChannel
+  constructor: (@url='/reactor', @retry_interval=100) ->
     @online = false
     @callbacks = {}
 
@@ -61,10 +60,10 @@ class Channel
         console.log 'Failed sending'
 
 
-channel = new Channel('/reactor')
-channel.open()
+reactor_channel = new ReactorChannel()
+reactor_channel.open()
 
-channel.on 'open', ->
+reactor_channel.on 'open', ->
   console.log 'ON-LINE'
   for el in document.querySelectorAll(reactor_components.join(','))
     el.classList.remove('reactor-disconnected')
@@ -75,7 +74,7 @@ reactor_channel.on 'close', ->
     el.classList.add('reactor-disconnected')
 
 
-channel.on 'message', ({type, id, html_diff}) ->
+reactor_channel.on 'message', ({type, id, html_diff}) ->
   console.log '<<<', type.toUpperCase(), id
   el = document.getElementById(id)
   if el?
@@ -96,7 +95,7 @@ for component in reactor_components
       @connect()
 
     disconnectedCallback: ->
-      channel.send 'leave', id: @id
+      reactor_channel.send 'leave', id: @id
 
     is_root: -> not @parent_component()
 
@@ -111,7 +110,7 @@ for component in reactor_components
       if @is_root()
         console.log '>>> JOIN', @tag_name
         state = JSON.parse @getAttribute 'state'
-        channel.send 'join',
+        reactor_channel.send 'join',
           tag_name: @tag_name
           state: state
 
@@ -152,7 +151,7 @@ for component in reactor_components
 
       console.log '>>> USER_EVENT', @tag_name, name, state
       origin = new Date()
-      channel.send 'user_event',
+      reactor_channel.send 'user_event',
         name: name
         state: state
 
