@@ -1,1 +1,1 @@
-recursive-include reactor/ *.html *.js
+recursive-include reactor/ *.html *.js *.css

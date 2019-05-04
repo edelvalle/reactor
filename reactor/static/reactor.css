@@ -1,0 +1,9 @@
+.reactor-disconnected {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.reactor-disconnected * {
+  opacity: 0.8;
+  pointer-events: none;
+}

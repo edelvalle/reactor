@@ -23,29 +23,32 @@ class Channel
     @callbacks[event_name]?(args...)
 
   open: ->
-    if not navigator?.onLine and @retry_interval?
-      setTimeout (=> @open()), @retry_interval
+    if @retry_interval < 10000
+      @retry_interval += 1000
 
-    @websocket?.close()
-    if window.location.protocol is 'https:'
-      protocol = 'wss://'
-    else
-      protocol = 'ws://'
+    if navigator.onLine
+      @websocket?.close()
 
-    @websocket = new WebSocket "#{protocol}#{window.location.host}#{@url}"
-    @websocket.onopen = (e) =>
-      @online = true
-      @trigger 'open'
+      if window.location.protocol is 'https:'
+        protocol = 'wss://'
+      else
+        protocol = 'ws://'
+      @websocket = new WebSocket "#{protocol}#{window.location.host}#{@url}"
+      @websocket.onopen = (e) =>
+        @online = true
+        @trigger 'open'
+        @retry_interval = 1000
 
-    @websocket.onclose = (e) =>
-      @online = false
-      @trigger 'close'
-      if @retry_interval?
+      @websocket.onclose = (e) =>
+        @online = false
+        @trigger 'close'
         setTimeout (=> @open()), @retry_interval
 
-    @websocket.onmessage = (e) =>
-      data = JSON.parse e.data
-      @trigger 'message', data
+      @websocket.onmessage = (e) =>
+        data = JSON.parse e.data
+        @trigger 'message', data
+    else
+      setTimeout (=> @open()), @retry_interval
 
   send: (command, payload) ->
     data =
@@ -64,7 +67,12 @@ channel.open()
 channel.on 'open', ->
   console.log 'ON-LINE'
   for el in document.querySelectorAll(reactor_components.join(','))
+    el.classList.remove('reactor-disconnected')
     el.connect()
+
+reactor_channel.on 'close', ->
+  for el in document.querySelectorAll(reactor_components.join(','))
+    el.classList.add('reactor-disconnected')
 
 
 channel.on 'message', ({type, id, html_diff}) ->
