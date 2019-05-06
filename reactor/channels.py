@@ -10,32 +10,33 @@ log = logging.getLogger('reactor')
 
 
 class ReactorConsumer(JsonWebsocketConsumer):
+    channel_name = ''
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.subcriptions = set()
+        self.subscriptions = set()
 
     # Group operations
 
     def subscribe(self, event):
         room_name = event['room_name']
-        if room_name not in self.subcriptions:
+        if room_name not in self.subscriptions:
             log.debug(f':: SUBSCRIBE {self.channel_name} {room_name}')
             async_to_sync(self.channel_layer.group_add)(
                 room_name,
                 self.channel_name
             )
-            self.subcriptions.add(room_name)
+            self.subscriptions.add(room_name)
 
     def unsubscribe(self, event):
         room_name = event['room_name']
-        if room_name in self.subcriptions:
+        if room_name in self.subscriptions:
             log.debug(f':: UNSUBSCRIBE {self.channel_name} {room_name}')
             async_to_sync(self.channel_layer.group_discard)(
                 room_name,
                 self.channel_name
             )
-            self.subcriptions.discard(room_name)
+            self.subscriptions.discard(room_name)
 
     # Channel events
 
@@ -46,7 +47,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
         log.debug(f':: CONNECT {self.channel_name}')
 
     def disconnect(self, close_code):
-        for room in list(self.subcriptions):
+        for room in list(self.subscriptions):
             self.unsubscribe({'room_name': room})
         log.debug(f':: DISCONNECT {self.channel_name}')
 
