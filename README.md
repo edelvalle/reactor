@@ -4,9 +4,10 @@ Reactor enables you to do something similar to Phoenix framework LiveView using 
 
 ## Installation and setup
 
-You require Python >=3.6. 
+Reactor requires Python >=3.6. 
 
 [Setup up your django-channels](https://channels.readthedocs.io/en/latest/installation.html) project beforehand.
+You will need to set up [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) as part of your configuration - Reactor won't work without Channel Layers enabled.
 
 Install reactor:
 
@@ -19,12 +20,11 @@ Add `reactor` to your `INSALLED_APPS`. Register the URL patterns of reactor in y
 ```python
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
-
-from reactor.urls import websocket_urlpatterns  # <- import this
+from reactor.urls import websocket_urlpatterns  # <- for Django Reactor
 
 application = ProtocolTypeRouter({
     'websocket': AuthMiddlewareStack(URLRouter(
-        websocket_urlpatterns, # <- add it here
+        websocket_urlpatterns, # <- For Django Reactor
         ...
     ))
 })
@@ -66,12 +66,15 @@ Render things as usually, so you can use full Django template language, `trans`,
 
 Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How this works? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
 
-Now let's write the behavior part of the component
+Now let's write the behavior part of the component in `views.py`:
 
 ```python
 from reactor import Component
 
 class XCounter(Component):
+
+    amount = None
+
     # reference the template from above
     template_name = 'x-counter.html' 
 
@@ -126,18 +129,20 @@ And the index template being:
      {% reactor_header %}
   </head>
   <body>
-    {% 'x-counter' %}
+    {% component 'x-counter' %}
 
     <!-- or passing an initial state -->
-    {% 'x-counter' amount=100 %}    
+    {% component 'x-counter' amount=100 %}    
 
   </body>
 </html>
 ```
 
+Don't forget to update your `urls.py` to call the index view.
+
 ## More complex components
 
-I made a TODO list app using models and everything and signaling from the model to the respective channels to update the interface when something get's created, modified or deleted.
+I made a TODO list app using models that signals from the model to the respective channels to update the interface when something gets created, modified or deleted.
 
 This example contains nested components and some more complex interactions than a simple counter, the app is in the `/tests/` directory.
 
