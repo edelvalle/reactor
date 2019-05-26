@@ -66,6 +66,7 @@ class ComponentHerarchy(dict):
 
 class Component:
     template_name = ''
+    extends = 'div'
     _all = {}
 
     def __init_subclass__(cls, name=None):

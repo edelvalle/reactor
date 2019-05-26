@@ -18,7 +18,7 @@ class ReactorChannel
   on: (event_name, callback) =>
     @callbacks[event_name] = callback
 
-  trigger: (event_name, args...) ->
+  trigger: (event_name, args  ...) ->
     @callbacks[event_name]?(args...)
 
   open: ->
@@ -63,22 +63,23 @@ class ReactorChannel
 reactor_channel = new ReactorChannel()
 reactor_channel.open()
 
+
+all_reactor_components = (
+  "#{name},[is='#{name}']" for name in Object.keys(reactor_components)
+).join(',')
+
+console.log all_reactor_components
 reactor_channel.on 'open', ->
   console.log 'ON-LINE'
-  for el in document.querySelectorAll(reactor_components.join(','))
+  for el in document.querySelectorAll(all_reactor_components)
     el.classList.remove('reactor-disconnected')
     el.connect()
 
 reactor_channel.on 'close', ->
-  for el in document.querySelectorAll(reactor_components.join(','))
+  for el in document.querySelectorAll(all_reactor_components)
     el.classList.add('reactor-disconnected')
 
 
-for component in reactor_components
-  class Component extends HTMLElement
-    constructor: ->
-      super()
-      @tag_name = @tagName.toLowerCase()
 reactor_channel.on 'message', ({type, id, html_diff, url}) ->
   console.log '<<<', type.toUpperCase(), id or url
   if type is 'redirect'
@@ -92,6 +93,13 @@ reactor_channel.on 'message', ({type, id, html_diff, url}) ->
         window.requestAnimationFrame ->
           el.remove()
 
+
+for component_name, base_html_element of reactor_components
+  base_element = document.createElement base_html_element
+  class Component extends base_element.constructor
+    constructor: (...args) ->
+      super(...args)
+      @tag_name = @getAttribute('is') or @tagName.toLowerCase()
       @_last_received_html = ''
 
     connectedCallback: ->
@@ -183,7 +191,7 @@ reactor_channel.on 'message', ({type, id, html_diff, url}) ->
         satte = merge_objects state, value
       state
 
-  customElements.define(component, Component)
+  customElements.define(component_name, Component, extends: base_html_element)
 
 
 merge_objects = (target, source) ->

@@ -23,7 +23,11 @@ class ReactorJSONEncoder(DjangoJSONEncoder):
 def reactor_header():
     return render_to_string(
         'reactor_header.html',
-        {'components': list(Component._all)}
+        {
+            'components': [
+                (name, c.extends) for name, c in Component._all.items()
+            ]
+        },
     )
 
 
