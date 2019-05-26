@@ -74,21 +74,24 @@ reactor_channel.on 'close', ->
     el.classList.add('reactor-disconnected')
 
 
-reactor_channel.on 'message', ({type, id, html_diff}) ->
-  console.log '<<<', type.toUpperCase(), id
-  el = document.getElementById(id)
-  if el?
-    if type is 'render'
-      el.apply_diff(html_diff)
-    else if type is 'remove'
-      window.requestAnimationFrame ->
-        el.remove()
-
 for component in reactor_components
   class Component extends HTMLElement
     constructor: ->
       super()
       @tag_name = @tagName.toLowerCase()
+reactor_channel.on 'message', ({type, id, html_diff, url}) ->
+  console.log '<<<', type.toUpperCase(), id or url
+  if type is 'redirect'
+    location.assign url
+  else
+    el = document.getElementById(id)
+    if el?
+      if type is 'render'
+        el.apply_diff(html_diff)
+      else if type is 'remove'
+        window.requestAnimationFrame ->
+          el.remove()
+
       @_last_received_html = ''
 
     connectedCallback: ->

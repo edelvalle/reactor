@@ -140,6 +140,9 @@ class Component:
             id=self.id,
         )
 
+    def send_redirect(self, url):
+        send_to_channel(self._channel_name, 'redirect', url=url)
+
     def send(self, _name, id=None, **kwargs):
         send_to_channel(
             self._channel_name,

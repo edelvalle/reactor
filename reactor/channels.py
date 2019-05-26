@@ -107,3 +107,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
         log.debug(f"<<< REMOVE {event['id']}")
         self.receive_leave(**event)
         self.send_json(dict(event, type='remove'))
+
+    def redirect(self, event):
+        log.debug(f"<<< REDIRECT {event['url']}")
+        self.send_json(dict(event, type='redirect'))
