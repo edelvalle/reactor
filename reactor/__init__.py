@@ -1,4 +1,2 @@
 
-from .component import ( # noqa
-    Component, AuthComponent, on_commit, broadcast_updates
-)
+from .component import Component, AuthComponent, on_commit, broadcast  # noqa

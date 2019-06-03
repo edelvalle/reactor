@@ -1,4 +1,6 @@
+import logging
 from uuid import uuid4
+from functools import wraps
 
 from diff_match_patch import diff_match_patch
 
@@ -7,8 +9,11 @@ from django.template.loader import render_to_string
 from django.template.context import Context
 from django.utils.safestring import mark_safe
 from django.utils.functional import cached_property
-from django.db.transaction import on_commit
+
 from channels.layers import get_channel_layer
+
+
+log = logging.getLogger('reactor')
 
 
 class ComponentHerarchy(dict):
@@ -94,14 +99,15 @@ class Component:
 
     # User events
 
-    def subscribe(self, room_name):
-        if room_name not in self.subscriptions:
-            self.subscriptions.add(room_name)
-            send_to_channel(
-                self._channel_name,
-                'subscribe',
-                room_name=room_name
-            )
+    def subscribe(self, *room_names):
+        for room_name in room_names:
+            if room_name not in self.subscriptions:
+                self.subscriptions.add(room_name)
+                send_to_channel(
+                    self._channel_name,
+                    'subscribe',
+                    room_name=room_name
+                )
 
     def unsubscribe(self, room_name):
         self.subscriptions.discard(room_name)
@@ -185,20 +191,35 @@ class AuthComponent(Component):
         return self._context['user']
 
 
+def broadcast(*names):
+    for name in names:
+        log.debug(f'<-> {name}')
+        send_to_group(name, 'update')
+
+
+def on_commit(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        from django.db.transaction import on_commit
+        on_commit(lambda: f(*args, **kwargs))
+    return wrapper
+
 
 def send_to_channel(_channel_name, type, **kwargs):
     if _channel_name:
-        on_commit(
-            lambda: async_to_sync(get_channel_layer().send)(
+        @on_commit
+        def send_message():
+            async_to_sync(get_channel_layer().send)(
                 _channel_name, dict(type=type, **kwargs)
             )
-        )
+        send_message()
 
 
 def send_to_group(_whom, type, **kwargs):
     if _whom:
-        on_commit(
-            lambda: async_to_sync(get_channel_layer().group_send)(
+        @on_commit
+        def send_message():
+            async_to_sync(get_channel_layer().group_send)(
                 _whom, dict(type=type, origin=_whom, **kwargs)
             )
-        )
+        send_message()
