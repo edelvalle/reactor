@@ -7,6 +7,7 @@ from diff_match_patch import diff_match_patch
 from asgiref.sync import async_to_sync
 
 from django.urls import reverse
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.template.context import Context
 from django.utils.safestring import mark_safe
@@ -198,6 +199,12 @@ class Component:
 
 
 class AuthComponent(Component):
+
+    def mount(self):
+        if self.user.is_authenticated:
+            return True
+        else:
+            self.send_redirect(settings.LOGIN_URL)
 
     @cached_property
     def user(self):
