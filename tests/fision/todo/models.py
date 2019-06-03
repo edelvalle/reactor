@@ -3,7 +3,7 @@ from django.db import models
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from reactor.component import send_to_group
+from reactor import broadcast
 
 
 class BaseModel(models.Model):
@@ -25,10 +25,10 @@ class ItemQS(models.QuerySet):
 
     def update(self, *args, **kwargs):
         results = super().update(*args, **kwargs)
-        send_to_group('item', 'update')
-        send_to_group('item.updated', 'update')
+        broadcast('item')
+        broadcast('item.updated')
         for item in self:
-            send_to_group(f'item.{item.id}', 'update')
+            broadcast(f'item.{item.id}')
         return results
 
 
@@ -44,16 +44,16 @@ class Item(BaseModel):
 
 @receiver(post_save, sender=Item)
 def emit_element_saved(sender, instance, created, **kwargs):
-    send_to_group(f'item', 'update')
+    broadcast(f'item')
     if created:
-        send_to_group('item.new', 'update')
+        broadcast('item.new')
     else:
-        send_to_group('item.updated', 'update')
-        send_to_group(f'item.{instance.id}', 'update')
+        broadcast('item.updated')
+        broadcast(f'item.{instance.id}')
 
 
 @receiver(post_delete, sender=Item)
 def emit_element_deleted(sender, instance, **kwargs):
-    send_to_group('item', 'update')
-    send_to_group('item.deleted', 'update')
-    send_to_group(f'item.{instance.id}', 'update')
+    broadcast('item')
+    broadcast('item.deleted')
+    broadcast(f'item.{instance.id}')
