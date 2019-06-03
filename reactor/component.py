@@ -5,6 +5,8 @@ from functools import wraps
 from diff_match_patch import diff_match_patch
 
 from asgiref.sync import async_to_sync
+
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.template.context import Context
 from django.utils.safestring import mark_safe
@@ -91,6 +93,7 @@ class Component:
     def __init__(self, context, id=None):
         self._context = context
         self._destroy_sent = False
+        self._redirected_to = None
         self._last_sent_html = ''
         self._diff = diff_match_patch()
         self._children = ComponentHerarchy(context=context)
@@ -148,7 +151,11 @@ class Component:
         )
 
     def send_redirect(self, url):
-        send_to_channel(self._channel_name, 'redirect', url=url)
+        url = reverse(url)
+        if self._channel_name:
+            send_to_channel(self._channel_name, 'redirect', url=url)
+        else:
+            self._redirected_to = url
 
     def send(self, _name, id=None, **kwargs):
         send_to_channel(
@@ -177,12 +184,18 @@ class Component:
     def render(self):
         if self._destroy_sent:
             html = ''
+        elif self._redirected_to:
+            html = (
+                f'<meta'
+                f' http-equiv="refresh"'
+                f' content="0; url={self._redirected_to}"'
+                f'>'
+            )
         else:
             context = Context(self._context).update({'this': self})
-            html = mark_safe(
-                render_to_string(self.template_name, context).strip()
-            )
-        return html
+            html = render_to_string(self.template_name, context).strip()
+        return mark_safe(html)
+
 
 class AuthComponent(Component):
 
