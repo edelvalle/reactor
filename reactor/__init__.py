@@ -1,2 +1,4 @@
 
-from .component import Component, send_to_group  # noqa
+from .component import ( # noqa
+    Component, AuthComponent, on_commit, broadcast_updates
+)

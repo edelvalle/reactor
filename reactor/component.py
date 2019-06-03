@@ -178,6 +178,13 @@ class Component:
             )
         return html
 
+class AuthComponent(Component):
+
+    @cached_property
+    def user(self):
+        return self._context['user']
+
+
 
 def send_to_channel(_channel_name, type, **kwargs):
     if _channel_name:
