@@ -180,13 +180,22 @@ for component_name, base_html_element of reactor_components
       #   <input name="person.name" value="John">
       #   <input name="person.age" value="99">
       # Result: {query: "q", person: {name: "John", value: "99"}}
+      #
+      # Ex3:
+      #   <input name="query" value="q">
+      #   <input name="persons[].name" value="a">
+      #   <input name="persons[].name" value="b">
+      # Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
 
       state ?= {id: @id}
       for {type, name, value, checked} in @querySelectorAll('[name]')
         value = if type is 'checkbox' then checked else value
         for part in name.split('.').reverse()
           obj = {}
-          obj[part] = value
+          if part.endsWith('[]')
+            obj[part[...-2]] = [value]
+          else
+            obj[part] = value
           value = obj
         satte = merge_objects state, value
       state
@@ -196,8 +205,11 @@ for component_name, base_html_element of reactor_components
 
 merge_objects = (target, source) ->
   for k, v of source
-    if typeof target[k] is 'object'
-      merge_objects target[k], v
+    target_value = target[k]
+    if Array.isArray target_value
+      target_value.push v...
+    else if typeof target_value is 'object'
+      merge_objects target_value, v
     else
       target[k] = v
   target
