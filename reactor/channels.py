@@ -1,7 +1,6 @@
 import logging
 
 from asgiref.sync import async_to_sync
-from django.db.transaction import atomic
 from channels.generic.websocket import JsonWebsocketConsumer
 
 from .component import ComponentHerarchy
@@ -53,7 +52,6 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     # Dispatching
 
-    @atomic
     def receive_json(self, request):
         name = request['command']
         payload = request['payload']
