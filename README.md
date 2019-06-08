@@ -15,7 +15,7 @@ Install reactor:
 pip install django-reactor
 ```
 
-Add `reactor` to your `INSALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/routing.py`, something like this:
+Add `reactor` to your `INSTALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/routing.py`, something like this:
 
 ```python
 from channels.auth import AuthMiddlewareStack
@@ -60,7 +60,7 @@ In your app create a template `x-counter.html`:
 </x-counter>
 ```
 
-Anatomy of a template: each component should is a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of reconnection to the back-end.
+Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of reconnection to the back-end.
 
 Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
 
