@@ -200,7 +200,7 @@ class Component:
 
 class AuthComponent(Component):
 
-    def mount(self):
+    def mount(self, *args, **kwargs):
         if self.user.is_authenticated:
             return True
         else:
@@ -209,6 +209,14 @@ class AuthComponent(Component):
     @cached_property
     def user(self):
         return self._context['user']
+
+
+class StaffComponent(AuthComponent):
+    def mount(self, *args, **kwargs):
+        if super().mount() and self.user.is_staff:
+            return True
+        else:
+            self.send_redirect(settings.LOGIN_URL)
 
 
 def broadcast(*names):
