@@ -61,8 +61,6 @@ class ReactorChannel
 
 
 reactor_channel = new ReactorChannel()
-reactor_channel.open()
-
 
 all_reactor_components = (
   "#{name},[is='#{name}']" for name in Object.keys(reactor_components)
@@ -220,3 +218,12 @@ send = (element, name, args) ->
       return element.dispatch(name, args or {})
     element = element.parentElement
 
+
+_timeouts = {}
+
+debounce = (delay_name, delay) -> (...args) ->
+  clearTimeout _timeouts[delay_name]
+  _timeouts[delay_name] = setTimeout (=> send(...args)), delay
+
+
+reactor_channel.open()
