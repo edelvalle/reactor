@@ -14,6 +14,7 @@ class ReactorChannel
   constructor: (@url='/reactor', @retry_interval=100) ->
     @online = false
     @callbacks = {}
+    @original_retry_interval = @retry_interval
 
   on: (event_name, callback) =>
     @callbacks[event_name] = callback
@@ -33,15 +34,18 @@ class ReactorChannel
       else
         protocol = 'ws://'
       @websocket = new WebSocket "#{protocol}#{window.location.host}#{@url}"
-      @websocket.onopen = (e) =>
+      @websocket.onopen = (event) =>
         @online = true
-        @trigger 'open'
-        @retry_interval = 1000
+        @trigger 'open', event
+        @retry_interval = @original_retry_interval
 
-      @websocket.onclose = (e) =>
+      @websocket.onclose = (event) =>
         @online = false
-        @trigger 'close'
-        setTimeout (=> @open()), @retry_interval
+        @trigger 'close', event
+        setTimeout (=> @open()), @retry_interval or 0
+
+      @websocket.onerror = (event) =>
+        console.log event
 
       @websocket.onmessage = (e) =>
         data = JSON.parse e.data
@@ -58,6 +62,11 @@ class ReactorChannel
         @websocket.send JSON.stringify data
       catch
         console.log 'Failed sending'
+
+  reconnect: ->
+    @retry_interval = 0
+    @websocket?.close()
+
 
 
 reactor_channel = new ReactorChannel()
