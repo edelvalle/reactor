@@ -142,6 +142,10 @@ for component_name, base_html_element of reactor_components
         window.requestAnimationFrame =>
           morphdom this, html,
             onBeforeElUpdated: (from_el, to_el) ->
+              # Prevent object from being updated
+              if from_el.hasAttribute('reactor-once')
+                return false
+
               # Prevent updating the input that has the focus
               if (from_el.type in FOCUSABLE_INPUTS and
                     from_el is document.activeElement and
