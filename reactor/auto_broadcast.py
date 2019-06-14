@@ -2,7 +2,7 @@ from .component import broadcast
 
 from django.dispatch import receiver
 from django.db import models
-from django.db.models.signals import post_save, post_delete, m2m_changed
+from django.db.models.signals import post_save, pre_delete, m2m_changed
 
 
 @receiver(post_save)
@@ -15,7 +15,7 @@ def broadcast_post_save(sender, instance, created=False, **kwargs):
     broadcast_related(sender, instance, created=created)
 
 
-@receiver(post_delete)
+@receiver(pre_delete)
 def broadcast_post_delete(sender, instance, **kwargs):
     name = sender._meta.model_name
     broadcast(f'{name}')
