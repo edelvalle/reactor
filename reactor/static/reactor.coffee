@@ -44,9 +44,6 @@ class ReactorChannel
         @trigger 'close', event
         setTimeout (=> @open()), @retry_interval or 0
 
-      @websocket.onerror = (event) =>
-        console.log event
-
       @websocket.onmessage = (e) =>
         data = JSON.parse e.data
         @trigger 'message', data
@@ -75,7 +72,6 @@ all_reactor_components = (
   "#{name},[is='#{name}']" for name in Object.keys(reactor_components)
 ).join(',')
 
-console.log all_reactor_components
 reactor_channel.on 'open', ->
   console.log 'ON-LINE'
   for el in document.querySelectorAll(all_reactor_components)
@@ -83,6 +79,7 @@ reactor_channel.on 'open', ->
     el.connect()
 
 reactor_channel.on 'close', ->
+  console.log 'OFF-LINE'
   for el in document.querySelectorAll(all_reactor_components)
     el.classList.add('reactor-disconnected')
 
@@ -99,7 +96,6 @@ reactor_channel.on 'message', ({type, id, html_diff, url}) ->
       else if type is 'remove'
         window.requestAnimationFrame ->
           el.remove()
-
 
 for component_name, base_html_element of reactor_components
   base_element = document.createElement base_html_element
@@ -166,8 +162,8 @@ for component_name, base_html_element of reactor_components
               return true
           @querySelector('[reactor-focus]')?.focus()
 
-    dispatch: (name, args) ->
-      state = @serialize()
+    dispatch: (name, form, args) ->
+      state = @serialize form or this
       for k, v of args
         state[k] = v
 
@@ -177,7 +173,7 @@ for component_name, base_html_element of reactor_components
         name: name
         state: state
 
-    serialize: (state) ->
+    serialize: (form) ->
       # Serialize the fields with name attribute and creates a dictionary
       # with them. It support nested name spaces.
       #
@@ -198,8 +194,8 @@ for component_name, base_html_element of reactor_components
       #   <input name="persons[].name" value="b">
       # Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
 
-      state ?= {id: @id}
-      for {type, name, value, checked} in @querySelectorAll('[name]')
+      state = {id: @id}
+      for {type, name, value, checked} in form.querySelectorAll('[name]')
         value = if type is 'checkbox' then checked else value
         for part in name.split('.').reverse()
           obj = {}
@@ -225,10 +221,17 @@ merge_objects = (target, source) ->
       target[k] = v
   target
 
+
 send = (element, name, args) ->
+  first_form_found = null
   while element
+
+    if first_form_found is null and element.tagName is 'FORM'
+      first_form_found = element
+
     if element.dispatch?
-      return element.dispatch(name, args or {})
+      return element.dispatch(name, first_form_found, args or {})
+
     element = element.parentElement
 
 
@@ -237,6 +240,5 @@ _timeouts = {}
 debounce = (delay_name, delay) -> (...args) ->
   clearTimeout _timeouts[delay_name]
   _timeouts[delay_name] = setTimeout (=> send(...args)), delay
-
 
 reactor_channel.open()
