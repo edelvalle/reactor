@@ -1,9 +1,10 @@
 {% load static reactor %}
 <link rel="stylesheet" href="{% static "reactor.css" %}">
-<script defer>var reactor_components = {
-  {% for name, base_html_element in components %}
-    '{{ name }}': '{{ base_html_element }}',
+<script defer>
+var reactor_components = {
+  {% for name, base_html_element in components %}'{{ name }}': '{{ base_html_element }}',
   {% endfor %}
-};</script>
+};
+</script>
 <script defer src="{% static "morphdom.min.js" %}"></script>
 <script defer src="{% static "reactor.js" %}"></script>
