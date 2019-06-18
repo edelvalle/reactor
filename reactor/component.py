@@ -77,12 +77,13 @@ class Component:
     extends = 'div'
     _all = {}
 
-    def __init_subclass__(cls, name=None):
-        name = name or cls.__name__
-        name = ''.join([('-' + c if c.isupper() else c) for c in name])
-        name = name.strip('-').lower()
-        cls._all[name] = cls
-        cls._tag_name = name
+    def __init_subclass__(cls, name=None, public=True):
+        if public:
+            name = name or cls.__name__
+            name = ''.join([('-' + c if c.isupper() else c) for c in name])
+            name = name.strip('-').lower()
+            cls._all[name] = cls
+            cls._tag_name = name
         return super().__init_subclass__()
 
     # Constructors
@@ -198,20 +199,21 @@ class Component:
         return mark_safe(html)
 
 
-class AuthComponent(Component):
+class AuthComponent(Component, public=False):
 
     def mount(self, *args, **kwargs):
         if self.user.is_authenticated:
+            # Listen to user logout and refresh
             return True
         else:
-            self.send_redirect(settings.LOGIN_URL)
+            self.send_redirect('index')
 
     @cached_property
     def user(self):
         return self._context['user']
 
 
-class StaffComponent(AuthComponent):
+class StaffComponent(AuthComponent, public=False):
     def mount(self, *args, **kwargs):
         if super().mount() and self.user.is_staff:
             return True
