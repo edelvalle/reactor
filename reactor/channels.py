@@ -109,3 +109,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def redirect(self, event):
         log.debug(f"<<< REDIRECT {event['url']}")
         self.send_json(dict(event, type='redirect'))
+
+    def push_state(self, event):
+        log.debug(f"<<< PUSH-STATE {event['url']}")
+        self.send_json(dict(event, type='push_state'))

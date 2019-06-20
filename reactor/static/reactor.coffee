@@ -87,7 +87,9 @@ reactor_channel.on 'close', ->
 reactor_channel.on 'message', ({type, id, html_diff, url}) ->
   console.log '<<<', type.toUpperCase(), id or url
   if type is 'redirect'
-    location.assign url
+    window.location.assign url
+  else if type is 'push_state'
+    push_state url
   else
     el = document.getElementById(id)
     if el?
@@ -240,5 +242,30 @@ _timeouts = {}
 debounce = (delay_name, delay) -> (...args) ->
   clearTimeout _timeouts[delay_name]
   _timeouts[delay_name] = setTimeout (=> send(...args)), delay
+
+push_state = (url) ->
+  if history.pushState?
+    history.pushState {}, '', url
+    load_page url
+  else
+    window.location.assign url
+
+window.onpopstate = ->
+  load_page window.location.href
+
+load_page = (url) ->
+  utf8_decoder = new TextDecoder("utf-8")
+  fetch(url).then (response) ->
+    reader = await response.body.getReader()
+    done = false
+    result = []
+    while not done
+      {done, value} = await reader.read()
+      value = if value then utf8_decoder.decode(value) else ''
+      result.push value
+    html = result.join('').trim()
+    window.requestAnimationFrame ->
+      morphdom(document.documentElement, html)
+      document.querySelector('[autofocus]')?.focus()
 
 reactor_channel.open()

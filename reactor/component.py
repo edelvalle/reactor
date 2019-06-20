@@ -95,6 +95,7 @@ class Component:
     def __init__(self, context, id=None):
         self._context = context
         self._destroy_sent = False
+        self._redirect_sent = False
         self._redirected_to = None
         self._last_sent_html = ''
         self._diff = diff_match_patch()
@@ -152,10 +153,15 @@ class Component:
             id=self.id,
         )
 
-    def send_redirect(self, url):
+    def send_redirect(self, url, push_state=True):
         url = reverse(url)
         if self._channel_name:
-            send_to_channel(self._channel_name, 'redirect', url=url)
+            if push_state:
+                action = 'push_state'
+            else:
+                action = 'redirect'
+            send_to_channel(self._channel_name, action, url=url)
+            self._redirect_sent = True
         else:
             self._redirected_to = url
 
@@ -184,7 +190,9 @@ class Component:
             ]
 
     def render(self):
-        if self._destroy_sent:
+        if self._redirect_sent:
+            html = self._last_sent_html
+        elif self._destroy_sent:
             html = ''
         elif self._redirected_to:
             html = (
