@@ -14,8 +14,8 @@ build:
 
 install:
 	python setup.py develop
-	pip install flake8 pytest-django websocket-client pyquery rjsmin
+	pip install flake8 pytest-django pytest-asyncio pytest-cov pyquery rjsmin
 
 test:
 	flake8 --max-line-length=80 reactor
-	py.test
+	py.test --cov reactor

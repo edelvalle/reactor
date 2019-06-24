@@ -1,48 +1,96 @@
-import json
+from uuid import uuid4
+from contextlib import asynccontextmanager
 
-import websocket
 from pyquery import PyQuery as q
 
+from django.contrib.auth.models import AnonymousUser
+from channels.testing import WebsocketCommunicator
 
-class JsonWebSocket(websocket.WebSocket):
-    def send_json(self, data):
-        return self.send(json.dumps(data))
-
-    def receive_json(self, *args, **kwargs):
-        return json.loads(self.recv(*args, **kwargs))
+from .channels import ReactorConsumer
 
 
-class ClientComponent:
-    def __init__(self, tag_name, **state):
-        self.tag_name = tag_name
-        self.state = state
-        self.last_received_html = ''
+class ReactorCommunicator(WebsocketCommunicator):
+    def __init__(self, user=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.scope['user'] = user or AnonymousUser()
+        self._components = {}
+        self.redirected_to = None
 
-    def send_join(self, ws: JsonWebSocket):
-        ws.send_json({
+    def add_component(self, *args, **kwargs):
+        component = Component(*args, **kwargs)
+        self._components[component.id] = component
+        return component.id
+
+    def __getitem__(self, _id):
+        return self._components[_id]
+
+    async def send_join(self, component_id):
+        component = self._components[component_id]
+        await self.send_json_to({
             'command': 'join',
             'payload': {
-                'tag_name': self.tag_name,
-                'state': self.state,
+                'tag_name': component.tag_name,
+                'state': component.state,
             },
         })
+        await self.loop_over_messages()
 
-    def send_user_event(self, _ws: JsonWebSocket, _name, **kwargs):
-        _ws.send_json({
+    async def send(self, _id, _name, **state):
+        assert _id in self._components
+        await self.send_json_to({
             'command': 'user_event',
             'payload': {
                 'name': _name,
-                'state': dict(kwargs, id=self.state['id'])
+                'state': dict(state, id=_id)
             }
         })
+        await self.loop_over_messages()
 
-    def assert_render(self, ws: JsonWebSocket):
-        response = ws.receive_json()
-        assert response['type'] == 'render'
-        assert response['id'] == self.state['id']
+    async def loop_over_messages(self):
+        while not await self.receive_nothing():
+            response = await self.receive_json_from()
+            if response['type'] in ('redirect', 'push_state'):
+                self.redirected_to = response['url']
+            else:
+                component = self._components[response['id']]
+                if response['type'] == 'render':
+                    component.apply_diff(response['html_diff'])
+                elif response['type'] == 'remove':
+                    component.apply_remove()
+
+
+@asynccontextmanager
+async def reactor(consumer=ReactorConsumer, path='/reactor', user=None):
+    comm = ReactorCommunicator(application=consumer, path=path, user=user)
+    connected, subprotocol = await comm.connect()
+    assert connected
+    try:
+        yield comm
+    finally:
+        await comm.disconnect()
+
+
+class Component:
+    def __init__(self, tag_name: str, state: dict = None):
+        state = state or {}
+        state.setdefault('id', str(uuid4()))
+        self.tag_name = tag_name
+        self.state = state
+        self.last_received_html = ''
+        self.removed = False
+
+    @property
+    def id(self):
+        return self.state['id']
+
+    @property
+    def doc(self):
+        return q(self.last_received_html)
+
+    def apply_diff(self, html_diff):
         html = []
         cursor = 0
-        for diff in response['html_diff']:
+        for diff in html_diff:
             if isinstance(diff, str):
                 html.append(diff)
             elif diff < 0:
@@ -51,12 +99,9 @@ class ClientComponent:
                 html.append(self.last_received_html[cursor:cursor + diff])
                 cursor += diff
         self.last_received_html = ''.join(html)
-        return q(self.last_received_html)
 
-    def assert_remove(self, ws: JsonWebSocket):
-        response = ws.receive_json()
-        assert response['type'] == 'remove'
-        assert response['id'] == self.state['id']
+    def apply_remove(self):
+        self.removed = True
 
     def __str__(self):
         return f'<{self.tag_name} {self.state}>'

@@ -1,3 +1,4 @@
+from django.db.transaction import atomic
 from django.shortcuts import render
 from reactor.component import Component
 
@@ -29,15 +30,18 @@ class XTodoList(Component):
     def all_items_are_completed(self):
         return self.items.count() == self.items.completed.count()
 
+    @atomic
     def receive_add(self, new_item, **kwargs):
         Item.objects.create(text=new_item)
 
     def receive_show(self, showing, **kwargs):
         self.showing = showing
 
+    @atomic
     def receive_toggle_all(self, toggle_all, **kwargs):
         self.items.update(completed=toggle_all)
 
+    @atomic
     def receive_clear_completed(self, **kwargs):
         self.items.completed.delete()
 
@@ -76,9 +80,11 @@ class XTodoItem(Component):
             self.showing == 'active' and not self.item.completed
         )
 
+    @atomic
     def receive_destroy(self, **kwargs):
         self.item.delete()
 
+    @atomic
     def receive_completed(self, completed, **kwargs):
         self.item.completed = completed
         self.item.save()
@@ -87,6 +93,7 @@ class XTodoItem(Component):
         if not self.item.completed:
             self.editing = not self.editing
 
+    @atomic
     def receive_save(self, text, **kwargs):
         self.item.text = text
         self.item.save()
