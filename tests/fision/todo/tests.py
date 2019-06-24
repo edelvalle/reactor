@@ -42,16 +42,14 @@ async def test_live_components():
             'x-todo-counter',
             {'id': 'someid-counter'}
         )
-        await comm.send_join(x_list)
-        doc = comm[x_list].doc
+        doc = await comm.send_join(x_list)
         todo_list = doc('#someid')
         assert json.loads(todo_list.attr['state']) == comm[x_list].state
 
         # Add new item
-        await comm.send(x_list, 'add', new_item='First task')
+        doc = await comm.send(x_list, 'add', new_item='First task')
 
         # There was an item crated and rendered
-        doc = comm[x_list].doc
         assert await db(Item.objects.count)() == 1
         assert len(doc('x-todo-item')) == 1
         todo_item_id = doc('x-todo-item')[0].get('id')
@@ -65,13 +63,11 @@ async def test_live_components():
         # Click title to edit it
         assert len(doc('x-todo-item li.editing')) == 0
         x_first_item = comm.add_component('x-todo-item', {'id': todo_item_id})
-        await comm.send(x_first_item, 'toggle_editing')
-        doc = comm[x_first_item].doc
+        doc = await comm.send(x_first_item, 'toggle_editing')
         assert len(doc('x-todo-item li.editing')) == 1
 
         # Edit item with a new text
-        await comm.send(x_first_item, 'save', text='Edited task')
-        doc = comm[x_first_item].doc
+        doc = await comm.send(x_first_item, 'save', text='Edited task')
         assert len(doc('x-todo-item li.editing')) == 0, 'Not in read mode'
         todo_item_label = doc('x-todo-item label')[0]
         assert todo_item_label.text == 'Edited task'
@@ -84,10 +80,9 @@ async def test_live_components():
 
         # Mark item as completed
         assert len(doc('x-todo-item li.completed')) == 0
-        await comm.send(x_first_item, 'completed', completed=True)
+        doc = await comm.send(x_first_item, 'completed', completed=True)
 
         # Item is completed
-        doc = comm[x_first_item].doc
         assert len(doc('x-todo-item li.completed')) == 1
 
         # Counter is rendered as 0
@@ -95,25 +90,21 @@ async def test_live_components():
         assert doc('strong')[0].text == '0'
 
         # Switch to "only active tasks" filtering
-        await comm.send(x_list, 'show', showing='active')
-        doc = comm[x_list].doc
+        doc = await comm.send(x_list, 'show', showing='active')
         assert len(doc('x-todo-item li.hidden')) == 1
 
         # Switch to "only done tasks" filtering
-        await comm.send(x_list, 'show', showing='completed')
-        doc = comm[x_list].doc
+        doc = await comm.send(x_list, 'show', showing='completed')
         assert len(doc('x-todo-item')) == 1
         assert len(doc('x-todo-item li.hidden')) == 0
 
         # Switch to "all tasks" filtering
-        await comm.send(x_list, 'show', showing='all')
-        doc = comm[x_list].doc
+        doc = await comm.send(x_list, 'show', showing='all')
         assert len(doc('x-todo-item')) == 1
         assert len(doc('x-todo-item li.hidden')) == 0
 
         # Add another task
-        await comm.send(x_list, 'add', new_item='Another task')
-        doc = comm[x_list].doc
+        doc = await comm.send(x_list, 'add', new_item='Another task')
         assert len(doc('x-todo-item')) == 2
         assert len(doc('x-todo-item li.completed')) == 1
 
@@ -122,8 +113,7 @@ async def test_live_components():
         assert doc('strong')[0].text == '1'
 
         # Remove completed tasks removes just one task
-        await comm.send(x_list, 'clear_completed')
-        doc = comm[x_list].doc
+        doc = await comm.send(x_list, 'clear_completed')
         assert len(doc('x-todo-item')) == 1
         assert len(doc('x-todo-item.completed')) == 0
 

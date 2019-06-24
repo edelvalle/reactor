@@ -34,6 +34,7 @@ class ReactorCommunicator(WebsocketCommunicator):
             },
         })
         await self.loop_over_messages()
+        return component.doc
 
     async def send(self, _id, _name, **state):
         assert _id in self._components
@@ -45,9 +46,10 @@ class ReactorCommunicator(WebsocketCommunicator):
             }
         })
         await self.loop_over_messages()
+        return self._components[_id].doc
 
-    async def loop_over_messages(self):
-        while not await self.receive_nothing():
+    async def loop_over_messages(self, timeout=0.1):
+        while not await self.receive_nothing(timeout=timeout):
             response = await self.receive_json_from()
             if response['type'] in ('redirect', 'push_state'):
                 self.redirected_to = response['url']
