@@ -15,6 +15,7 @@ class ReactorCommunicator(WebsocketCommunicator):
         self.scope['user'] = user or AnonymousUser()
         self._components = {}
         self.redirected_to = None
+        self.loop_timeout = None
 
     def add_component(self, *args, **kwargs):
         component = Component(*args, **kwargs)
@@ -48,8 +49,14 @@ class ReactorCommunicator(WebsocketCommunicator):
         await self.loop_over_messages()
         return self._components[_id].doc
 
-    async def loop_over_messages(self, timeout=0.1):
-        while not await self.receive_nothing(timeout=timeout):
+    async def loop_over_messages(self, reset_timeout=False):
+        if reset_timeout or not self.loop_timeout:
+            self.loop_timeout = 0.1
+            while await self.receive_nothing(timeout=self.loop_timeout):
+                self.loop_timeout *= 2
+            print('LOOP TIMEOUT', self.loop_timeout)
+
+        while not await self.receive_nothing(timeout=self.loop_timeout):
             response = await self.receive_json_from()
             if response['type'] in ('redirect', 'push_state'):
                 self.redirected_to = response['url']
