@@ -1,5 +1,7 @@
+import json
 from uuid import uuid4
 from contextlib import asynccontextmanager
+
 
 from pyquery import PyQuery as q
 
@@ -46,7 +48,7 @@ class ReactorCommunicator(WebsocketCommunicator):
                 'state': dict(state, id=_id)
             }
         })
-        await self.loop_over_messages()
+        await self.loop_over_messages(reset_timeout=True)
         return self._components[_id].doc
 
     async def loop_over_messages(self, reset_timeout=False):
@@ -108,6 +110,10 @@ class Component:
                 html.append(self.last_received_html[cursor:cursor + diff])
                 cursor += diff
         self.last_received_html = ''.join(html)
+
+        state = self.doc.attr['state']
+        if state:
+            self.state = json.loads(state)
 
     def apply_remove(self):
         self.removed = True
