@@ -8,8 +8,8 @@ from asgiref.sync import async_to_sync
 
 from django.urls import reverse
 from django.conf import settings
+from django.template import Context
 from django.template.loader import render_to_string
-from django.template.context import Context
 from django.utils.safestring import mark_safe
 from django.utils.functional import cached_property
 
@@ -74,6 +74,7 @@ class ComponentHerarchy(dict):
 
 class Component:
     template_name = ''
+    template = None
     extends = 'div'
     _all = {}
 
@@ -202,8 +203,11 @@ class Component:
                 f'>'
             )
         else:
-            context = Context(self._context).update({'this': self})
-            html = render_to_string(self.template_name, context).strip()
+            if self.template:
+                html = self.template.render(Context({'this': self}))
+            else:
+                html = render_to_string(self.template_name, {'this': self})
+            html = html.strip()
         return mark_safe(html)
 
 
@@ -214,7 +218,7 @@ class AuthComponent(Component, public=False):
             # Listen to user logout and refresh
             return True
         else:
-            self.send_redirect('index')
+            self.send_redirect(settings.LOGIN_URL)
 
     @cached_property
     def user(self):

@@ -134,7 +134,6 @@ for component_name, base_html_element of reactor_components
       console.log new Date() - origin
       html = []
       cursor = 0
-      console.log html_diff
       for diff in html_diff
         if typeof diff is 'string'
           html.push diff
@@ -254,6 +253,7 @@ window.onpopstate = ->
   load_page window.location.href
 
 load_page = (url) ->
+  console.log 'GOTO', url
   utf8_decoder = new TextDecoder("utf-8")
   fetch(url).then (response) ->
     reader = await response.body.getReader()
