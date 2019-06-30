@@ -6,7 +6,6 @@ from diff_match_patch import diff_match_patch
 
 from asgiref.sync import async_to_sync
 
-from django.urls import reverse
 from django.conf import settings
 from django.template import Context
 from django.template.loader import render_to_string
