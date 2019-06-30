@@ -155,7 +155,6 @@ class Component:
         )
 
     def send_redirect(self, url, push_state=True):
-        url = reverse(url)
         if self._channel_name:
             if push_state:
                 action = 'push_state'
