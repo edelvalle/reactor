@@ -12,12 +12,22 @@ from .channels import ReactorConsumer
 
 
 class ReactorCommunicator(WebsocketCommunicator):
+    MAX_WAIT = 2  # seconds
+
     def __init__(self, user=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.scope['user'] = user or AnonymousUser()
         self._components = {}
         self.redirected_to = None
         self.loop_timeout = None
+
+    async def auto_join(self, response):
+        doc = q(response.content)
+        for component in doc('[id][state]'):
+            tag_name = component.get('is') or component.tag
+            state = json.loads(component.get('state'))
+            component_id = self.add_component(tag_name, state)
+            await self.send_join(component_id)
 
     def add_component(self, *args, **kwargs):
         component = Component(*args, **kwargs)
@@ -26,6 +36,11 @@ class ReactorCommunicator(WebsocketCommunicator):
 
     def __getitem__(self, _id):
         return self._components[_id]
+
+    def get_by_name(self, name):
+        for component in self._components.values():
+            if component.tag_name == name:
+                return component
 
     async def send_join(self, component_id):
         component = self._components[component_id]
@@ -56,7 +71,8 @@ class ReactorCommunicator(WebsocketCommunicator):
             self.loop_timeout = 0.1
             while await self.receive_nothing(timeout=self.loop_timeout):
                 self.loop_timeout *= 2
-            print('LOOP TIMEOUT', self.loop_timeout)
+                if self.loop_timeout > self.MAX_WAIT:
+                    break
 
         while not await self.receive_nothing(timeout=self.loop_timeout):
             response = await self.receive_json_from()
