@@ -2,10 +2,10 @@ import json
 from uuid import uuid4
 from contextlib import asynccontextmanager
 
-
 from pyquery import PyQuery as q
 
 from django.contrib.auth.models import AnonymousUser
+from django.core.serializers.json import DjangoJSONEncoder
 from channels.testing import WebsocketCommunicator
 
 from .channels import ReactorConsumer
@@ -66,6 +66,9 @@ class ReactorCommunicator(WebsocketCommunicator):
         await self.loop_over_messages(reset_timeout=True)
         return self._components[_id].doc
 
+    async def send_json_to(self, data):
+        await self.send_to(text_data=json.dumps(data, cls=DjangoJSONEncoder))
+
     async def loop_over_messages(self, reset_timeout=False):
         if reset_timeout or not self.loop_timeout:
             self.loop_timeout = 0.1
@@ -104,15 +107,12 @@ class Component:
         self.tag_name = tag_name
         self.state = state
         self.last_received_html = ''
+        self.doc = None
         self.removed = False
 
     @property
     def id(self):
         return self.state['id']
-
-    @property
-    def doc(self):
-        return q(self.last_received_html)
 
     def apply_diff(self, html_diff):
         html = []
@@ -126,6 +126,7 @@ class Component:
                 html.append(self.last_received_html[cursor:cursor + diff])
                 cursor += diff
         self.last_received_html = ''.join(html)
+        self.doc = q(self.last_received_html)
 
         state = self.doc.attr['state']
         if state:
