@@ -1,5 +1,5 @@
 {% load reactor %}
-<x-todo-item id="{{ this.id }}">
+<div is="x-todo-item" id="{{ this.id }}">
   <li class="
       {{ this.item.completed|then:'completed' }}
       {{ this.editing|then:'editing' }}
@@ -26,4 +26,4 @@
       {{ this.editing|then:'reactor-focus' }}
     >
   </li>
-</x-todo-item>
+</div>

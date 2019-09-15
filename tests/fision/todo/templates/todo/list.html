@@ -1,5 +1,5 @@
 {% load reactor %}
-<x-todo-list id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+<div is="x-todo-list" id="{{ this.id }}" state="{{ this.serialize|tojson }}">
   <section class="todoapp">
     <header class="header">
       <h1>todos</h1>
@@ -73,4 +73,4 @@
       </footer>
     {% endif %}
 
-</x-todo-list>
+</div>
