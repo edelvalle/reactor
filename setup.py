@@ -21,7 +21,7 @@ setup(
     zip_safe=False,
     python_requires='>=3.6',
     install_requires=[
-        'channels>=2.2.0,<2.3',
+        'channels>=2.2.0,<2.5',
         'diff-match-patch>=20181111',
     ],
     classifiers=[
@@ -35,6 +35,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Internet :: WWW/HTTP',
     ],
 )
