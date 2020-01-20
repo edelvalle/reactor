@@ -1,7 +1,7 @@
 {% load reactor %}
 <div is="x-counter" id="{{ this.id }}" state="{{ this.serialize|tojson }}">
   {{ this.amount }}
-  <button onclick="send(this, 'inc')">+</button>
-  <button onclick="send(this, 'dec')">-</button>
-  <button onclick="send(this, 'set_to', {amount: 0})">reset</button>
+  <button @click="inc">+</button>
+  <button @click="dec">-</button>
+  <button @click="set_to {amount: 0}">reset</button>
 </div>

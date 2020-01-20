@@ -99,6 +99,46 @@ reactor_channel.on 'message', ({type, id, html_diff, url}) ->
         window.requestAnimationFrame ->
           el.remove()
 
+
+TRANSPILER_CACHE = {}
+
+transpile = (el) ->
+  if el.attributes is undefined
+    return
+
+  for attr in el.attributes
+    if attr.name.startsWith('@')
+      [name, ...modifiers] = attr.name.split('.')
+      start = attr.value.indexOf(' ')
+      if start isnt -1
+        method_name = attr.value[...start]
+        method_args = attr.value[start + 1...]
+      else
+        method_name = attr.value
+        method_args = '{}'
+
+      cache_key = "#{attr.name}.#{method_name}.#{method_args}"
+      code = TRANSPILER_CACHE[cache_key]
+      if not code
+        code = "send(this, '#{method_name}', #{method_args});"
+        for modifier in modifiers.reverse()
+          modifier = if modifier is 'space' then ' ' else modifier
+          switch modifier
+            when "prevent"
+              code = "event.preventDefault(); " + code
+            when "ctrl"
+              code = "if (event.ctrlKey) { #{code} }"
+            when "alt"
+              code = "if (event.altKey) { #{code} }"
+            else
+              code = "if (event.key.toLowerCase() == '#{modifier}') { #{code} }; "
+        TRANSPILER_CACHE[cache_key] = code
+
+      el.attributes.removeNamedItem attr.name
+      nu_attr = document.createAttribute 'on' + name[1...]
+      nu_attr.value = code
+      el.attributes.setNamedItem nu_attr
+
 for component_name, base_html_element of reactor_components
   base_element = document.createElement base_html_element
   class Component extends base_element.constructor
@@ -147,6 +187,7 @@ for component_name, base_html_element of reactor_components
         @_last_received_html = html
         window.requestAnimationFrame =>
           morphdom this, html,
+            onNodeAdded: transpile
             onBeforeElUpdated: (from_el, to_el) ->
               # Prevent object from being updated
               if from_el.hasAttribute('reactor-once')
@@ -160,8 +201,9 @@ for component_name, base_html_element of reactor_components
                   from_el.setAttribute(name, to_el.getAttribute(name))
                 from_el.readOnly = to_el.readOnly
                 return false
+              transpile(to_el)
               return true
-          @querySelector('[reactor-focus]')?.focus()
+          @querySelector('[reactor-focus]:not([disabled])')?.focus()
 
     dispatch: (name, form, args) ->
       state = @serialize form or this
@@ -266,6 +308,6 @@ load_page = (url) ->
     html = result.join('').trim()
     window.requestAnimationFrame ->
       morphdom(document.documentElement, html)
-      document.querySelector('[autofocus]')?.focus()
+      document.querySelector('[autofocus]:not([disabled])')?.focus()
 
 reactor_channel.open()

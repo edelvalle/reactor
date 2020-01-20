@@ -9,7 +9,7 @@
         name="new_item"
         reactor-override-value
         autofocus
-        onkeypress="if (event.key == 'Enter') { send(this, 'add') }"
+        @keydown.alt.enter="add"
       >
     </header>
     <!-- This section should be hidden by default and shown when there are todos -->
@@ -21,7 +21,7 @@
           type="checkbox"
           name="toggle_all"
           {{ this.all_items_are_completed|then:'checked' }}
-          onchange="send(this, 'toggle_all')"
+          @change="toggle_all"
         >
         <label for="toggle-all">Mark all as complete</label>
         <ul class="todo-list">
@@ -46,7 +46,7 @@
           <li>
             <a
               {% if this.showing == 'all' %}class="selected"{% endif %}
-              onclick="event.preventDefault(); send(this, 'show', {showing: 'all'})"
+              @click.prevent="show {showing: 'all'}"
             >
               All
             </a>
@@ -54,7 +54,7 @@
           <li>
             <a
               {% if this.showing == 'active' %}class="selected"{% endif %}
-              onclick="event.preventDefault(); send(this, 'show', {showing: 'active'})"
+              @click.prevent="show {showing: 'active'}"
             >
               Active
             </a>
@@ -62,14 +62,14 @@
           <li>
             <a
               {% if this.showing == 'completed' %}class="selected"{% endif %}
-              onclick="event.preventDefault(); send(this, 'show', {showing: 'completed'})"
+              @click="show {showing: 'completed'}"
             >
               Completed
             </a>
           </li>
         </ul>
         <!-- Hidden if no completed items are left ↓ -->
-        <button class="clear-completed" onclick="send(this, 'clear_completed')">Clear completed</button>
+        <button class="clear-completed" @click="clear_completed">Clear completed</button>
       </footer>
     {% endif %}
 
