@@ -22,7 +22,7 @@
       name="text"
       value="{{ this.item.text }}"
       @blur="save"
-      @keyup.enter="save"
+      @keypress.enter="save"
       {{ this.editing|then:'reactor-focus' }}
     >
   </li>
