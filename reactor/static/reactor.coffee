@@ -117,7 +117,7 @@ transpile = (el) ->
         method_name = attr.value
         method_args = '{}'
 
-      cache_key = "#{attr.name}.#{method_name}.#{method_args}"
+      cache_key = "#{modifiers}.#{method_name}.#{method_args}"
       code = TRANSPILER_CACHE[cache_key]
       if not code
         code = "send(this, '#{method_name}', #{method_args});"
