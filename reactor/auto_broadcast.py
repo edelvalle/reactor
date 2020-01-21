@@ -75,7 +75,7 @@ def get_name_of(through, model):
     for model_field in model._meta.get_fields():
         found = (
             getattr(model_field, 'through', None) or
-            getattr(getattr(model, model_field.name), 'through', None)
+            getattr(getattr(model, model_field.name, None), 'through', None)
         )
         if through is found:
             return model_field.name
