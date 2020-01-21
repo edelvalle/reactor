@@ -105,9 +105,13 @@ TRANSPILER_CACHE = {}
 transpile = (el) ->
   if el.attributes is undefined
     return
-
   for attr in el.attributes
-    if attr.name.startsWith('@')
+    if attr.name is ':load'
+      nu_attr = document.createAttribute 'onclick'
+      nu_attr.value = 'event.preventDefault(); push_state(this.href);'
+      el.attributes.setNamedItem nu_attr
+
+    else if attr.name.startsWith('@')
       [name, ...modifiers] = attr.name.split('.')
       start = attr.value.indexOf(' ')
       if start isnt -1
