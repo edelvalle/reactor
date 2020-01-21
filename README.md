@@ -22,6 +22,8 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from reactor.urls import websocket_urlpatterns  # <- for Django Reactor
 
+import yourproject.urls  # Pre load all components
+
 application = ProtocolTypeRouter({
     'websocket': AuthMiddlewareStack(URLRouter(
         websocket_urlpatterns, # <- For Django Reactor
@@ -52,12 +54,12 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<x-counter id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+<div is="x-counter" id="{{ this.id }}" state="{{ this.serialize|tojson }}">
   {{ this.amount }}
-  <button onclick="send(this, 'inc')">+</button>
-  <button onclick="send(this, 'dec')">-</button>
-  <button onclick="send(this, 'set_to', {amount: 0})">reset</button>
-</x-counter>
+  <button @click="inc">+</button>
+  <button @click="dec">-</button>
+  <button @click="set_to {amount: 0}">reset</button>
+</div>
 ```
 
 Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of reconnection to the back-end.
