@@ -18,6 +18,16 @@ pip install django-reactor
 Add `reactor` to your `INSTALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/routing.py`, something like this:
 
 ```python
+# flake8: noqa
+
+import os
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tourproject.settings')
+
+import django
+django.setup()
+
+fr
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from reactor.urls import websocket_urlpatterns  # <- for Django Reactor
@@ -27,10 +37,15 @@ import yourproject.urls  # Pre load all components
 application = ProtocolTypeRouter({
     'websocket': AuthMiddlewareStack(URLRouter(
         websocket_urlpatterns, # <- For Django Reactor
-        ...
     ))
 })
 ```
+
+Reactor does not search your code base for components so you have to pre-load them. So this will be the file to import them from where ever they are so they are available to be rendered.
+
+My personal philosophy is to have the components in the same files of the views where they are, this views are imported by urls.py. So if you import those like:
+
+
 
 In the templates where you want to use reactive components you have to load the reactor static files. So do something like:
 
