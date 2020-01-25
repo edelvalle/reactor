@@ -216,7 +216,10 @@ class AuthComponent(Component, public=False):
             # Listen to user logout and refresh
             return True
         else:
-            self.send_redirect(settings.LOGIN_URL)
+            self.redirect_to_login()
+
+    def redirect_to_login(self):
+        self.send_redirect(settings.LOGIN_URL)
 
     @cached_property
     def user(self):
