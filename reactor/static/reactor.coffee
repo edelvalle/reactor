@@ -290,28 +290,32 @@ debounce = (delay_name, delay) -> (...args) ->
 
 push_state = (url) ->
   if history.pushState?
-    history.pushState {}, '', url
-    load_page url
+    load_page url, true
+
   else
     window.location.assign url
 
 window.onpopstate = ->
   load_page window.location.href
 
-load_page = (url) ->
+load_page = (url, push=true) ->
   console.log 'GOTO', url
   utf8_decoder = new TextDecoder("utf-8")
   fetch(url).then (response) ->
-    reader = await response.body.getReader()
-    done = false
-    result = []
-    while not done
-      {done, value} = await reader.read()
-      value = if value then utf8_decoder.decode(value) else ''
-      result.push value
-    html = result.join('').trim()
-    window.requestAnimationFrame ->
-      morphdom(document.documentElement, html)
-      document.querySelector('[autofocus]:not([disabled])')?.focus()
+    if response.redirected
+      load_page response.url
+    else
+      history.pushState {}, '', url
+      reader = await response.body.getReader()
+      done = false
+      result = []
+      while not done
+        {done, value} = await reader.read()
+        value = if value then utf8_decoder.decode(value) else ''
+        result.push value
+      html = result.join('').trim()
+      window.requestAnimationFrame ->
+        morphdom(document.documentElement, html)
+        document.querySelector('[autofocus]:not([disabled])')?.focus()
 
 reactor_channel.open()
