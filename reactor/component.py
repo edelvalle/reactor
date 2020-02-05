@@ -7,6 +7,7 @@ from diff_match_patch import diff_match_patch
 from asgiref.sync import async_to_sync
 
 from django.conf import settings
+from django.shortcuts import resolve_url
 from django.template import Context
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
@@ -153,7 +154,9 @@ class Component:
             id=self.id,
         )
 
-    def send_redirect(self, url, push_state=True):
+    def send_redirect(self, url,  *args, **kwargs):
+        push_state = kwargs.pop('push_state', True)
+        url = resolve_url(url, *args, **kwargs)
         if self._channel_name:
             if push_state:
                 action = 'push_state'
