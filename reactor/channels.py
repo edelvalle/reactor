@@ -56,7 +56,12 @@ class ReactorConsumer(JsonWebsocketConsumer):
         name = request['command']
         payload = request['payload']
         log.debug(f'>>> {name.upper()} {payload}')
-        getattr(self, f'receive_{name}')(**payload)
+        try:
+            getattr(self, f'receive_{name}')(**payload)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise e
 
     def receive_join(self, tag_name, state):
         component = self.root_component.get_or_create(tag_name, **state)
