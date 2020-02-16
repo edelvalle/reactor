@@ -105,11 +105,14 @@ TRANSPILER_CACHE = {}
 transpile = (el) ->
   if el.attributes is undefined
     return
+
+  replacements = []
   for attr in el.attributes
     if attr.name is ':load'
-      nu_attr = document.createAttribute 'onclick'
-      nu_attr.value = 'event.preventDefault(); push_state(this.href);'
-      el.attributes.setNamedItem nu_attr
+      replacements.push {
+        nane: 'onclick'
+        code: 'event.preventDefault(); push_state(this.href);'
+      }
 
     else if attr.name.startsWith('@')
       [name, ...modifiers] = attr.name.split('.')
@@ -124,7 +127,10 @@ transpile = (el) ->
       cache_key = "#{modifiers}.#{method_name}.#{method_args}"
       code = TRANSPILER_CACHE[cache_key]
       if not code
-        code = "send(this, '#{method_name}', #{method_args});"
+        if method_name is ''
+          code = ''
+        else
+          code = "send(this, '#{method_name}', #{method_args});"
         for modifier in modifiers.reverse()
           modifier = if modifier is 'space' then ' ' else modifier
           switch modifier
@@ -138,8 +144,17 @@ transpile = (el) ->
               code = "if (event.key.toLowerCase() == '#{modifier}') { #{code} }; "
         TRANSPILER_CACHE[cache_key] = code
 
-      el.attributes.removeNamedItem attr.name
-      nu_attr = document.createAttribute 'on' + name[1...]
+      replacements.push {
+        old_name: attr.name
+        name: 'on' + name[1...]
+        code: code
+      }
+
+  console.log replacements
+  for {old_name, name, code} in replacements
+      if old_name
+        el.attributes.removeNamedItem old_name
+      nu_attr = document.createAttribute name
       nu_attr.value = code
       el.attributes.setNamedItem nu_attr
 
