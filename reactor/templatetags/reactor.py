@@ -3,6 +3,7 @@ from django import template
 from django.db.models import QuerySet, Model
 from django.template.loader import render_to_string
 from django.core.serializers.json import DjangoJSONEncoder
+from django.utils.safestring import mark_safe
 
 
 from ..component import Component
@@ -47,7 +48,12 @@ def concat(value, arg):
     return f'{value}-{arg}'
 
 
-@register.filter(is_safe=True)
+@register.filter()
+def tojson_safe(value):
+    return mark_safe(tojson(value))
+
+
+@register.filter()
 def tojson(value):
     return json.dumps(value, cls=ReactorJSONEncoder)
 
