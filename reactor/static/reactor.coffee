@@ -74,14 +74,16 @@ all_reactor_components = (
 
 reactor_channel.on 'open', ->
   console.log 'ON-LINE'
-  for el in document.querySelectorAll(all_reactor_components)
-    el.classList.remove('reactor-disconnected')
-    el.connect()
+  if all_reactor_components
+    for el in document.querySelectorAll(all_reactor_components)
+      el.classList.remove('reactor-disconnected')
+      el.connect()
 
 reactor_channel.on 'close', ->
   console.log 'OFF-LINE'
-  for el in document.querySelectorAll(all_reactor_components)
-    el.classList.add('reactor-disconnected')
+  if all_reactor_components
+    for el in document.querySelectorAll(all_reactor_components)
+      el.classList.add('reactor-disconnected')
 
 
 reactor_channel.on 'message', ({type, id, html_diff, url}) ->
@@ -333,4 +335,6 @@ load_page = (url, push=true) ->
         morphdom(document.documentElement, html)
         document.querySelector('[autofocus]:not([disabled])')?.focus()
 
-reactor_channel.open()
+
+if all_reactor_components
+  reactor_channel.open()
