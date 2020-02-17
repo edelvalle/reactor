@@ -336,5 +336,6 @@ load_page = (url, push=true) ->
         document.querySelector('[autofocus]:not([disabled])')?.focus()
 
 
-if all_reactor_components
-  reactor_channel.open()
+if (all_reactor_components and
+      document.querySelectorAll(all_reactor_components).length)
+    reactor_channel.open()
