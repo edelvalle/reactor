@@ -90,7 +90,7 @@ reactor_channel.on 'message', ({type, id, html_diff, url}) ->
   if type is 'redirect'
     window.location.assign url
   else if type is 'push_state'
-    push_state url
+    window.push_state url
   else
     el = document.getElementById(id)
     if el?
@@ -288,7 +288,7 @@ merge_objects = (target, source) ->
   target
 
 
-send = (element, name, args) ->
+window.send = (element, name, args) ->
   first_form_found = null
   while element
 
@@ -305,9 +305,9 @@ _timeouts = {}
 
 debounce = (delay_name, delay) -> (...args) ->
   clearTimeout _timeouts[delay_name]
-  _timeouts[delay_name] = setTimeout (=> send(...args)), delay
+  _timeouts[delay_name] = setTimeout (=> window.send(...args)), delay
 
-push_state = (url) ->
+window.push_state = (url) ->
   if history.pushState?
     load_page url, true
   else
@@ -327,7 +327,7 @@ load_page = (url, push=true) ->
       reader = await response.body.getReader()
       done = false
       result = []
-      while not done
+      until done
         {done, value} = await reader.read()
         value = if value then utf8_decoder.decode(value) else ''
         result.push value
