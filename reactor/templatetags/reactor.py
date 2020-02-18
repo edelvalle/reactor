@@ -22,14 +22,7 @@ class ReactorJSONEncoder(DjangoJSONEncoder):
 
 @register.simple_tag
 def reactor_header():
-    return render_to_string(
-        'reactor_header.html',
-        {
-            'components': [
-                (name, c.extends) for name, c in Component._all.items()
-            ]
-        },
-    )
+    return render_to_string('reactor_header.html')
 
 
 @register.simple_tag(takes_context=True)

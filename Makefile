@@ -7,7 +7,7 @@ build-deps:
 	npm install coffeescript
 
 build:
-	./node_modules/.bin/coffee -cmb .
+	./node_modules/.bin/coffee -c .
 	python -m rjsmin <reactor/static/reactor.js >reactor/static/reactor.min.js
 	mv reactor/static/reactor.min.js reactor/static/reactor.js
 	python setup.py sdist

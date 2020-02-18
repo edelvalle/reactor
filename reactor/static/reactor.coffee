@@ -10,6 +10,11 @@ FOCUSABLE_INPUTS = [
   'url'
 ]
 
+COMPONENT_TYPES = new class then constructor: ->
+  for e in document.querySelectorAll '[is]'
+    @[e.getAttribute('is')] = e.tagName.toLowerCase()
+
+
 class ReactorChannel
   constructor: (@url='/reactor', @retry_interval=100) ->
     @online = false
@@ -44,8 +49,8 @@ class ReactorChannel
         @trigger 'close', event
         setTimeout (=> @open()), @retry_interval or 0
 
-      @websocket.onmessage = (e) =>
-        data = JSON.parse e.data
+      @websocket.onmessage = (event) =>
+        data = JSON.parse event.data
         @trigger 'message', data
     else
       setTimeout (=> @open()), @retry_interval
@@ -65,25 +70,19 @@ class ReactorChannel
     @websocket?.close()
 
 
-
 reactor_channel = new ReactorChannel()
 
-all_reactor_components = (
-  "#{name},[is='#{name}']" for name in Object.keys(reactor_components)
-).join(',')
 
 reactor_channel.on 'open', ->
   console.log 'ON-LINE'
-  if all_reactor_components
-    for el in document.querySelectorAll(all_reactor_components)
+  for el in document.querySelectorAll '[is]'
       el.classList.remove('reactor-disconnected')
-      el.connect()
+      el.connect?()
 
 reactor_channel.on 'close', ->
   console.log 'OFF-LINE'
-  if all_reactor_components
-    for el in document.querySelectorAll(all_reactor_components)
-      el.classList.add('reactor-disconnected')
+  for el in document.querySelectorAll '[is]'
+    el.classList.add('reactor-disconnected')
 
 
 reactor_channel.on 'message', ({type, id, html_diff, url}) ->
@@ -152,7 +151,6 @@ transpile = (el) ->
         code: code
       }
 
-  console.log replacements
   for {old_name, name, code} in replacements
       if old_name
         el.attributes.removeNamedItem old_name
@@ -160,12 +158,14 @@ transpile = (el) ->
       nu_attr.value = code
       el.attributes.setNamedItem nu_attr
 
-for component_name, base_html_element of reactor_components
+
+
+for component_name, base_html_element of COMPONENT_TYPES
   base_element = document.createElement base_html_element
   class Component extends base_element.constructor
     constructor: (...args) ->
       super(...args)
-      @tag_name = @getAttribute('is') or @tagName.toLowerCase()
+      @tag_name = @getAttribute 'is'
       @_last_received_html = ''
 
     connectedCallback: ->
@@ -192,7 +192,7 @@ for component_name, base_html_element of reactor_components
           state: state
 
     apply_diff: (html_diff) ->
-      console.log new Date() - origin
+      console.log "#{new Date() - origin}ms"
       html = []
       cursor = 0
       for diff in html_diff
@@ -218,10 +218,12 @@ for component_name, base_html_element of reactor_components
               if (from_el.type in FOCUSABLE_INPUTS and
                     from_el is document.activeElement and
                     'reactor-override-value' not in to_el.getAttributeNames())
+                transpile(to_el)
                 to_el.getAttributeNames().forEach (name) ->
                   from_el.setAttribute(name, to_el.getAttribute(name))
                 from_el.readOnly = to_el.readOnly
                 return false
+
               transpile(to_el)
               return true
           @querySelector('[reactor-focus]:not([disabled])')?.focus()
@@ -308,7 +310,6 @@ debounce = (delay_name, delay) -> (...args) ->
 push_state = (url) ->
   if history.pushState?
     load_page url, true
-
   else
     window.location.assign url
 
@@ -335,7 +336,5 @@ load_page = (url, push=true) ->
         morphdom(document.documentElement, html)
         document.querySelector('[autofocus]:not([disabled])')?.focus()
 
-
-if (all_reactor_components and
-      document.querySelectorAll(all_reactor_components).length)
-    reactor_channel.open()
+if Object.keys(COMPONENT_TYPES).length
+  reactor_channel.open()
