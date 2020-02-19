@@ -3,7 +3,7 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 
-from .component import ComponentHerarchy
+from .component import ComponentHerarchy, Component
 
 log = logging.getLogger('reactor')
 
@@ -43,6 +43,12 @@ class ReactorConsumer(JsonWebsocketConsumer):
         super().connect()
         self.scope['channel_name'] = self.channel_name
         self.root_component = ComponentHerarchy(context=self.scope)
+        self.send_json({
+            'type': 'components',
+            'component_types': {
+                name: c.extends for name, c in Component._all.items()
+            }
+        })
         log.debug(f':: CONNECT {self.channel_name}')
 
     def disconnect(self, close_code):
@@ -56,12 +62,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
         name = request['command']
         payload = request['payload']
         log.debug(f'>>> {name.upper()} {payload}')
-        try:
-            getattr(self, f'receive_{name}')(**payload)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            raise e
+        getattr(self, f'receive_{name}')(**payload)
 
     def receive_join(self, tag_name, state):
         component = self.root_component.get_or_create(tag_name, **state)
