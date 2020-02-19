@@ -2,6 +2,10 @@
 
 Reactor enables you to do something similar to Phoenix framework LiveView using Django Channels.
 
+## What's in the box?
+
+This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow you use all the potential of Django to create interactive front-ends. This method has its drawbacks because if connection is lost to the server the components in the front-end go busted until connection is re-established. But also has some advantages, as everything is server side rendered the interface comes already with meaningful information in the first request response, you can use all the power of Django template without limitations, if connection is lost or a component crashes, the front-end will have enough information to rebuild their state in the last good known state.
+
 ## Installation and setup
 
 Reactor requires Python >=3.6. 
@@ -15,7 +19,7 @@ Install reactor:
 pip install django-reactor
 ```
 
-Add `reactor` to your `INSTALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/routing.py`, something like this:
+Add `reactor` to your `INSTALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/asgi.py`, something like this:
 
 ```python
 # flake8: noqa
@@ -27,7 +31,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tourproject.settings')
 import django
 django.setup()
 
-fr
+
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from reactor.urls import websocket_urlpatterns  # <- for Django Reactor
@@ -43,11 +47,9 @@ application = ProtocolTypeRouter({
 
 Reactor does not search your code base for components so you have to pre-load them. So this will be the file to import them from where ever they are so they are available to be rendered.
 
-My personal philosophy is to have the components in the same files of the views where they are, this views are imported by urls.py. So if you import those like:
+My personal philosophy is to have the components in the same files of the views where they are, this views are imported by urls.py. 
 
-
-
-In the templates where you want to use reactive components you have to load the reactor static files. So do something like:
+In the templates where you want to use reactive components you have to load the reactor static files. So do something like this so the right JavaScript gets loaded:
 
 ```html
 {% load reactor %}
@@ -61,7 +63,43 @@ In the templates where you want to use reactive components you have to load the 
 </html>
 ```
 
-Put them as early as possible, they use `<script defer>` so they will be downloaded in parallel with the page load and when the page is loaded will be executed.
+Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and then all is loaded they are executed.
+
+## APIs
+
+### Template tags and filters of `react` library
+
+- `{% reactor_headers %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
+- `{% component 'x-component-name' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `Component.mount` method.
+- `tojson`: Takes something and renders it in JSON, the `ReactorJSONEncoder` extends the `DjangoJSONEncoder` it serializes a `Model` instance to its `id` and a `QuerySet` as a list of `ids`.
+- `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
+- `then`: Use as a shorthand for if, `{% if expression %}print-this{% endif %}` is equivalent to `{{ expresssion|then:'print-this' }}`.
+- `ifnot`: Use a shorthand for if not, `{% if not expression %}print-this{% endif %}` is equivalent to `{{ expresssion|ifnot:'print-this' }}, and can be concatenated with then, like in: `{{ expression|then:'positive'|ifnot:'negative' }}`
+
+### `reactor.component` module
+
+- `Component`: This is the base component you should extend.
+- `AuthComponent`: Extends `Component` and ensures the user is logged in.
+- `boarcast(*names)`: Broadcasts the given names too all the system.
+- `on_commit(function)(*args, **kwargs)`: Calls `function` with the given arguments after database commit. 
+
+#### Component API
+
+- `template_name`: Set the name of the template of the component.
+- `extends`: Tag name HTML element the component extends.
+- `serialize`: Should returns a dictionary with the persistent state of the component (stored in the front-end) so when the components is connects to the back-end (or reconnects) that state can be recreated, By default serializes just the `id` of the component, and the `id` should always be serialized.
+- `mount(**kwargs)`: Loads the initial state of the component when is rendered from the back-end or it reconnects from the front-end (using the information created by `serialize`), it is also called in case a subscription of the component is triggered.
+- subscribe(*names): Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
+- `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`, if push_state=False, the redirect is done in hard HTML5 `pushState` is not used.
+- `send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
+
+
+#### AuthComponent API
+
+This component ensures the user is logged in or redirects the user to the login screen; when using this component and overriding `mount` make sure to call the support mount first.
+
+- `mount(**kwargs)`: Same as before, but returns `True` if the user is logged in.
+- `user`: the current logged-in user.
 
 ## Simple counter example
 
