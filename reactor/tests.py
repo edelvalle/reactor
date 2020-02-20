@@ -17,20 +17,31 @@ class ReactorCommunicator(WebsocketCommunicator):
     def __init__(self, user=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.scope['user'] = user or AnonymousUser()
+        self._component_types = {}
         self._components = {}
         self.redirected_to = None
         self.loop_timeout = None
+
+    async def connect(self, *args, **kwargs):
+        connected, subprotocol = await super().connect(*args, **kwargs)
+        if connected:
+            response = await self.receive_json_from()
+            assert response['type'] == 'components'
+            self._component_types = response['component_types']
+        return connected, subprotocol
 
     async def auto_join(self, response):
         doc = q(response.content)
         for component in doc('[id][state]'):
             tag_name = component.get('is') or component.tag
+            assert tag_name in self._component_types
             state = json.loads(component.get('state'))
             component_id = self.add_component(tag_name, state)
             await self.send_join(component_id)
 
-    def add_component(self, *args, **kwargs):
-        component = Component(*args, **kwargs)
+    def add_component(self, tag_name: str, *args, **kwargs):
+        assert tag_name in self._component_types
+        component = Component(tag_name, *args, **kwargs)
         self._components[component.id] = component
         return component.id
 
