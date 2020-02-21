@@ -93,7 +93,7 @@ reactor_channel.on 'message', ({type, id, html_diff, url, component_types}) ->
   else if type is 'redirect'
     window.location.assign url
   else if type is 'push_state'
-    window.push_state url
+    reactor.push_state url
   else
     el = document.getElementById(id)
     if el?
@@ -115,7 +115,7 @@ transpile = (el) ->
     if attr.name is ':load'
       replacements.push {
         nane: 'onclick'
-        code: 'event.preventDefault(); push_state(this.href);'
+        code: 'event.preventDefault(); reactor.push_state(this.href);'
       }
 
     else if attr.name.startsWith('@')
@@ -134,7 +134,7 @@ transpile = (el) ->
         if method_name is ''
           code = ''
         else
-          code = "send(this, '#{method_name}', #{method_args});"
+          code = "reactor.send(this, '#{method_name}', #{method_args});"
         for modifier in modifiers.reverse()
           modifier = if modifier is 'space' then ' ' else modifier
           switch modifier
@@ -293,8 +293,9 @@ merge_objects = (target, source) ->
       target[k] = v
   target
 
+window.reactor = reactor = {}
 
-window.send = (element, name, args) ->
+reactor.send = (element, name, args) ->
   first_form_found = null
   while element
 
@@ -313,7 +314,7 @@ debounce = (delay_name, delay) -> (...args) ->
   clearTimeout _timeouts[delay_name]
   _timeouts[delay_name] = setTimeout (=> window.send(...args)), delay
 
-window.push_state = (url) ->
+reactor.push_state = (url) ->
   if history.pushState?
     load_page url, true
   else
