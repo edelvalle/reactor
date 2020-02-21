@@ -128,8 +128,8 @@ Serialization of means to look at a chunk of HTML and extract the value of all e
 #### Example 1
 
 ```html
-  <input name="a" value="q">
-  <input name="b" value="x">
+<input name="a" value="q">
+<input name="b" value="x">
 ```
 
 Result: `{a: "q", b: "x"}`
@@ -137,19 +137,19 @@ Result: `{a: "q", b: "x"}`
 #### Example 2
 
 ```html
-  <input name="query" value="q">
-  <input name="person.name" value="John">
-  <input name="person.age" value="99">
+<input name="query" value="q">
+<input name="person.name" value="John">
+<input name="person.age" value="99">
 ```
 
 Result: `{query: "q", person: {name: "John", value: "99"}}`
 
-### Example 3
+#### Example 3
 
 ```html
-  <input name="query" value="q">
-  <input name="persons[].name" value="a">
-  <input name="persons[].name" value="b">
+<input name="query" value="q">
+<input name="persons[].name" value="a">
+<input name="persons[].name" value="b">
 ```
 
 Result: `{query: "q", persons: [{name: "a"}, {name: "b"}]}`
@@ -159,14 +159,14 @@ Result: `{query: "q", persons: [{name: "a"}, {name: "b"}]}`
 Given:
 
 ```html
-  <button @click="inc {amount: 2}">Increment</button?>
+<button @click="inc {amount: 2}">Increment</button?>
 ```
 
 You will need an event handler in that component in the back-end:
 
 ```python
-   def receive_inc(self, amount, **kwargs):
-      pass
+ def receive_inc(self, amount, **kwargs):
+    pass
 ```
 
 Always prefix the method name with `receice_` and add `**kwargs` at the end because more data is always sent to the component, like the component's own `id`.
