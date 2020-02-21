@@ -65,7 +65,7 @@ In the templates where you want to use reactive components you have to load the 
 
 Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and then all is loaded they are executed.
 
-## APIs
+## Back-end APIs
 
 ### Template tags and filters of `react` library
 
@@ -101,7 +101,77 @@ This component ensures the user is logged in or redirects the user to the login 
 - `mount(**kwargs)`: Same as before, but returns `True` if the user is logged in.
 - `user`: the current logged-in user.
 
-## Simple counter example
+## Front-end APIs
+
+- `reactor.push_state(url)`: pulls the next page from the backend with a get request, and applies it to the current page.
+- `reactor.send(element, event_name, args)`: send the event `event_name` with the `args` parameters to the HTML `element`. It what is used to forward user event to the back-end.
+
+### Event binding in the front-end
+
+Look at this:
+
+```html
+  <button @click.prevent="submit">Submit</button?>
+```
+
+The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]"`:
+
+- `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
+- `modifier`: can be concatenated after the event name and represent actions or conditions to be met, like `prevent`, calls `event.PreventDefault();`, `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press to send the message to the back-end. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html)
+- `event_name`: is the name of the message to be send to this component
+- The arguments can be completely omitted, or specified as a dictionary. 
+
+When the arguments are omitted reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
+
+Serialization of means to look at a chunk of HTML and extract the value of all elements with a `name` attribute in it. Reactor serialization supports nesting:
+
+#### Example 1
+
+```html
+  <input name="a" value="q">
+  <input name="b" value="x">
+```
+
+Result: `{a: "q", b: "x"}`
+
+#### Example 2
+
+```html
+  <input name="query" value="q">
+  <input name="person.name" value="John">
+  <input name="person.age" value="99">
+```
+
+Result: `{query: "q", person: {name: "John", value: "99"}}`
+
+### Example 3
+
+```html
+  <input name="query" value="q">
+  <input name="persons[].name" value="a">
+  <input name="persons[].name" value="b">
+```
+
+Result: `{query: "q", persons: [{name: "a"}, {name: "b"}]}`
+
+### Event handlers in the back-end
+
+Given:
+
+```html
+  <button @click="inc {amount: 2}">Increment</button?>
+```
+
+You will need an event handler in that component in the back-end:
+
+```python
+   def receive_inc(self, amount, **kwargs):
+      pass
+```
+
+Always prefix the method name with `receice_` and add `**kwargs` at the end because more data is always sent to the component, like the component's own `id`.
+
+## Simple example of a counter
 
 In your app create a template `x-counter.html`:
 

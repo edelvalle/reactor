@@ -126,7 +126,7 @@ transpile = (el) ->
         method_args = attr.value[start + 1...]
       else
         method_name = attr.value
-        method_args = '{}'
+        method_args = 'null'
 
       cache_key = "#{modifiers}.#{method_name}.#{method_args}"
       code = TRANSPILER_CACHE[cache_key]
@@ -235,10 +235,12 @@ declare_components = (component_types) ->
             @querySelector('[reactor-focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
-        state = @serialize form or this
-        for k, v of args
-          state[k] = v
+        if args
+          state = args
+        else
+          state = @serialize form or this
 
+        state['id'] = @id
         console.log '>>> USER_EVENT', @tag_name, name, state
         origin = new Date()
         reactor_channel.send 'user_event',
@@ -276,7 +278,7 @@ declare_components = (component_types) ->
             else
               obj[part] = value
             value = obj
-          satte = merge_objects state, value
+          state = merge_objects state, value
         state
 
     customElements.define(component_name, Component, extends: base_html_element)
@@ -303,7 +305,7 @@ reactor.send = (element, name, args) ->
       first_form_found = element
 
     if element.dispatch?
-      return element.dispatch(name, first_form_found, args or {})
+      return element.dispatch(name, first_form_found, args)
 
     element = element.parentElement
 
