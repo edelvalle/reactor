@@ -90,7 +90,7 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 - `serialize`: Should returns a dictionary with the persistent state of the component (stored in the front-end) so when the components is connects to the back-end (or reconnects) that state can be recreated, By default serializes just the `id` of the component, and the `id` should always be serialized.
 - `mount(**kwargs)`: Loads the initial state of the component when is rendered from the back-end or it reconnects from the front-end (using the information created by `serialize`), it is also called in case a subscription of the component is triggered.
 - subscribe(*names): Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
-- `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`, if push_state=False, the redirect is done in hard HTML5 `pushState` is not used.
+- `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`, if `push_state=False`, the redirect is done in hard HTML5 `pushState` is not used.
 - `send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
 
 
