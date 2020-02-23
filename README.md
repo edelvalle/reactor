@@ -106,6 +106,13 @@ This component ensures the user is logged in or redirects the user to the login 
 - `reactor.push_state(url)`: pulls the next page from the backend with a get request, and applies it to the current page.
 - `reactor.send(element, event_name, args)`: send the event `event_name` with the `args` parameters to the HTML `element`. It what is used to forward user event to the back-end.
 
+### Special HTMLElement attributes
+
+- `:load`: Causes a `reactor.push_states(this.href)` when the current element is clicked.
+- `:override`: By default reactor does not update an input value if you have the focus on it, by adding this attribute to that input reactor will update it even if you have the focus on it.
+- `:once`: Reactor will render this element and children once, and never update it again.
+- `:focus`: Sets the focus on this element after an update
+
 ### Event binding in the front-end
 
 Look at this:

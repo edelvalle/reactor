@@ -114,7 +114,7 @@ transpile = (el) ->
   for attr in el.attributes
     if attr.name is ':load'
       replacements.push {
-        nane: 'onclick'
+        name: 'onclick'
         code: 'event.preventDefault(); reactor.push_state(this.href);'
       }
 
@@ -217,13 +217,13 @@ declare_components = (component_types) ->
               onNodeAdded: transpile
               onBeforeElUpdated: (from_el, to_el) ->
                 # Prevent object from being updated
-                if from_el.hasAttribute('reactor-once')
+                if from_el.hasAttribute(':once')
                   return false
 
                 # Prevent updating the input that has the focus
                 if (from_el.type in FOCUSABLE_INPUTS and
                       from_el is document.activeElement and
-                      'reactor-override-value' not in to_el.getAttributeNames())
+                      ':override' not in to_el.getAttributeNames())
                   transpile(to_el)
                   to_el.getAttributeNames().forEach (name) ->
                     from_el.setAttribute(name, to_el.getAttribute(name))
@@ -232,7 +232,7 @@ declare_components = (component_types) ->
 
                 transpile(to_el)
                 return true
-            @querySelector('[reactor-focus]:not([disabled])')?.focus()
+            @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
         if args
