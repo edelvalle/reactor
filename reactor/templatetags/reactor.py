@@ -52,6 +52,14 @@ def tojson(value):
 
 
 @register.filter
+def eq(value, other):
+    if value == other:
+        return 'yes'
+    else:
+        return ''
+
+
+@register.filter
 def then(value, true_result):
     if value:
         return true_result
