@@ -8,7 +8,7 @@ This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow
 
 ## Installation and setup
 
-Reactor requires Python >=3.6. 
+Reactor requires Python >=3.6.
 
 [Setup up your django-channels](https://channels.readthedocs.io/en/latest/installation.html) project beforehand.
 You will need to set up [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) as part of your configuration - Reactor won't work without Channel Layers enabled.
@@ -75,6 +75,7 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 - `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
 - `then`: Use as a shorthand for if, `{% if expression %}print-this{% endif %}` is equivalent to `{{ expresssion|then:'print-this' }}`.
 - `ifnot`: Use a shorthand for if not, `{% if not expression %}print-this{% endif %}` is equivalent to `{{ expresssion|ifnot:'print-this' }}, and can be concatenated with then, like in: `{{ expression|then:'positive'|ifnot:'negative' }}`
+- `eq`: Compares its arguments and returns `"yes"` or empty string, `{{ this_thing|qe:other_other|then:'print-this' }}`.
 
 ### `reactor.component` module
 
