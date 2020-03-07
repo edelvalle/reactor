@@ -155,12 +155,21 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'django.server',
         },
+    },
+    'formatters': {
+        'django.server': {
+            '()': 'reactor.log.ServerFormatter',
+            'format': '[{server_time}] {message}',
+            'style': '{',
+        }
     },
     'loggers': {
         'reactor': {
             'handlers': ['console'],
             'level': 'DEBUG',
+
         },
     },
 }
