@@ -175,6 +175,7 @@ declare_components = (component_types) ->
         @_last_received_html = ''
 
       connectedCallback: ->
+        @_yet_rendered = false
         @connect()
 
       disconnectedCallback: ->
@@ -210,29 +211,30 @@ declare_components = (component_types) ->
             html.push @_last_received_html[cursor...cursor + diff]
             cursor += diff
         html = html.join ''
-        if @_last_received_html isnt html
-          @_last_received_html = html
-          window.requestAnimationFrame =>
-            morphdom this, html,
-              onNodeAdded: transpile
-              onBeforeElUpdated: (from_el, to_el) ->
-                # Prevent object from being updated
-                if from_el.hasAttribute(':once')
-                  return false
+        @_last_received_html = html
+        window.requestAnimationFrame =>
+          morphdom this, html,
+            onBeforeElUpdated: (from_el, to_el) =>
+              # Prevent object from being updated
+              if (@_yet_rendered and
+                  (from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)))
+                return false
 
-                # Prevent updating the input that has the focus
-                if (from_el.type in FOCUSABLE_INPUTS and
-                      from_el is document.activeElement and
-                      ':override' not in to_el.getAttributeNames())
-                  transpile(to_el)
-                  to_el.getAttributeNames().forEach (name) ->
-                    from_el.setAttribute(name, to_el.getAttribute(name))
-                  from_el.readOnly = to_el.readOnly
-                  return false
-
+              # Prevent updating the input that has the focus
+              if (from_el.type in FOCUSABLE_INPUTS and
+                    from_el is document.activeElement and
+                    ':override' not in to_el.getAttributeNames())
                 transpile(to_el)
-                return true
-            @querySelector('[\\:focus]:not([disabled])')?.focus()
+                to_el.getAttributeNames().forEach (name) ->
+                  from_el.setAttribute(name, to_el.getAttribute(name))
+                from_el.readOnly = to_el.readOnly
+                transpile(from_el)
+                return false
+
+              transpile(to_el)
+              return true
+          @_yet_rendered = true
+          @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
         if args
