@@ -81,7 +81,7 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 
 - `Component`: This is the base component you should extend.
 - `AuthComponent`: Extends `Component` and ensures the user is logged in.
-- `boarcast(*names)`: Broadcasts the given names too all the system.
+- `broadcast(*names)`: Broadcasts the given names too all the system.
 - `on_commit(function)(*args, **kwargs)`: Calls `function` with the given arguments after database commit. 
 
 #### Component API
