@@ -184,6 +184,8 @@ declare_components = (component_types) ->
         @connect()
 
       disconnectedCallback: ->
+        eval @getAttribute 'onreactor-leave'
+        console.log '>>> LEAVE', @id
         reactor_channel.send 'leave', id: @id
 
       deep_transpile: (element=null) ->
@@ -233,6 +235,11 @@ declare_components = (component_types) ->
 
               if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
+
+              # call before update method
+              code = from_el.getAttribute 'onreactor-beforeupdate'
+              if code and not (-> eval(code)).call from_el
+                  return false
 
               # Prevent updating the inputs that has the focus
               should_patch = (
