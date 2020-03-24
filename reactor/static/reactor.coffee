@@ -358,6 +358,14 @@ load_page = (url, push=true) ->
       window.requestAnimationFrame ->
         morphdom document.documentElement, html,
           onNodeAdded: transpile
+          onBeforeElUpdated: (from_el, to_el) ->
+            if (from_el.isEqualNode(to_el) or
+                from_el.hasAttribute(':persistent') and from_el.id is to_el.id)
+              return false
+
+            transpile(to_el)
+            true
+
         document.querySelector('[autofocus]:not([disabled])')?.focus()
 
 
