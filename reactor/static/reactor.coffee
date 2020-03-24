@@ -138,6 +138,8 @@ transpile = (el) ->
         for modifier in modifiers.reverse()
           modifier = if modifier is 'space' then ' ' else modifier
           switch modifier
+            when "inlinejs"
+              code = attr.value
             when "prevent"
               code = "event.preventDefault(); " + code
             when "stop"
