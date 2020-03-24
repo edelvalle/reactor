@@ -1,6 +1,10 @@
+import json
 import logging
+from typing import Generator
 
 from asgiref.sync import async_to_sync
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models
 from channels.generic.websocket import JsonWebsocketConsumer
 
 from .component import ComponentHerarchy, Component
@@ -119,3 +123,22 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def push_state(self, event):
         log.debug(f"<<< PUSH-STATE {event['url']}")
         self.send_json(dict(event, type='push_state'))
+
+    @classmethod
+    def encode_json(cls, content):
+        return json.dumps(content, cls=RactorJSONEncoder)
+
+
+class RactorJSONEncoder(DjangoJSONEncoder):
+
+    def default(self, o):
+        if isinstance(o, models.Model):
+            return o.pk
+
+        if isinstance(o, models.QuerySet):
+            return list(o.values_list('pk', flat=True))
+
+        if isinstance(o, (Generator, set)):
+            return list(o)
+
+        return super().default(o)
