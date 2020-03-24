@@ -140,6 +140,8 @@ transpile = (el) ->
           switch modifier
             when "prevent"
               code = "event.preventDefault(); " + code
+            when "stop"
+              code = "event.stopPropagation(); " + code
             when "ctrl"
               code = "if (event.ctrlKey) { #{code} }"
             when "alt"
