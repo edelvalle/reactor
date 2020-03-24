@@ -77,8 +77,8 @@ reactor_channel = new ReactorChannel()
 reactor_channel.on 'open', ->
   console.log 'ON-LINE'
   for el in document.querySelectorAll '[is]'
-      el.classList.remove('reactor-disconnected')
-      el.connect?()
+    el.classList.remove('reactor-disconnected')
+    el.connect?()
 
 reactor_channel.on 'close', ->
   console.log 'OFF-LINE'
