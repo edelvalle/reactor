@@ -180,6 +180,7 @@ declare_components = (component_types) ->
 
       connectedCallback: ->
         @deep_transpile()
+        eval @getAttribute 'onreactor-init'
         @connect()
 
       disconnectedCallback: ->
@@ -233,10 +234,16 @@ declare_components = (component_types) ->
               if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
 
-              # Prevent updating the input that has the focus
-              if (from_el.type in FOCUSABLE_INPUTS and
-                    from_el is document.activeElement and
-                    ':override' not in to_el.getAttributeNames())
+              # Prevent updating the inputs that has the focus
+              should_patch = (
+                from_el is document.activeElement and
+                not to_el.hasAttribute(':override')
+                (
+                  from_el.type in FOCUSABLE_INPUTS or
+                  from_el.hasAttribute(':contenteditable')
+                )
+              )
+              if should_patch
                 transpile(to_el)
                 to_el.getAttributeNames().forEach (name) ->
                   from_el.setAttribute(name, to_el.getAttribute(name))
@@ -283,9 +290,16 @@ declare_components = (component_types) ->
         # Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
 
         state = {id: @id}
-        for {type, name, value, checked} in form.querySelectorAll('[name]')
-          value = if type is 'checkbox' then checked else value
-          for part in name.split('.').reverse()
+        for el in form.querySelectorAll('[name]')
+          value = (
+            if el.type is 'checkbox'
+              el.checked
+            else if el.hasAttribute 'contenteditable'
+              el.textContent
+            else
+              el.value
+          )
+          for part in el.getAttribute('name').split('.').reverse()
             obj = {}
             if part.endsWith('[]')
               obj[part[...-2]] = [value]
