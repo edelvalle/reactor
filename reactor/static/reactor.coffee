@@ -179,11 +179,19 @@ declare_components = (component_types) ->
         @_last_received_html = ''
 
       connectedCallback: ->
-        @_yet_rendered = false
+        @deep_transpile()
         @connect()
 
       disconnectedCallback: ->
         reactor_channel.send 'leave', id: @id
+
+      deep_transpile: (element=null) ->
+        if not element?
+          transpile this
+          element = this
+        for child in element.children
+          transpile child
+          @deep_transpile(child)
 
       is_root: -> not @parent_component()
 
@@ -218,10 +226,11 @@ declare_components = (component_types) ->
         @_last_received_html = html
         window.requestAnimationFrame =>
           morphdom this, html,
+            onNodeAdded: transpile
             onBeforeElUpdated: (from_el, to_el) =>
               # Prevent object from being updated
-              if (@_yet_rendered and
-                  (from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)))
+
+              if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
 
               # Prevent updating the input that has the focus
@@ -237,7 +246,6 @@ declare_components = (component_types) ->
 
               transpile(to_el)
               return true
-          @_yet_rendered = true
           @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
@@ -348,7 +356,8 @@ load_page = (url, push=true) ->
         result.push value
       html = result.join('').trim()
       window.requestAnimationFrame ->
-        morphdom(document.documentElement, html)
+        morphdom document.documentElement, html,
+          onNodeAdded: transpile
         document.querySelector('[autofocus]:not([disabled])')?.focus()
 
 
