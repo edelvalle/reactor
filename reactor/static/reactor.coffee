@@ -135,18 +135,24 @@ transpile = (el) ->
           code = ''
         else
           code = "reactor.send(this, '#{method_name}', #{method_args});"
-        for modifier in modifiers.reverse()
+
+        while modifiers.length
+          modifier = modifiers.pop()
           modifier = if modifier is 'space' then ' ' else modifier
           switch modifier
-            when "inlinejs"
+            when 'inlinejs'
               code = attr.value
-            when "prevent"
+            when 'debounce'
+              _name = modifiers.pop()
+              _delay = modifiers.pop()
+              code = "reactor.debounce('#{_name}', #{_delay})(function(){ #{code} })()"
+            when 'prevent'
               code = "event.preventDefault(); " + code
-            when "stop"
+            when 'stop'
               code = "event.stopPropagation(); " + code
-            when "ctrl"
+            when 'ctrl'
               code = "if (event.ctrlKey) { #{code} }"
-            when "alt"
+            when 'alt'
               code = "if (event.altKey) { #{code} }"
             else
               code = "if (event.key.toLowerCase() == '#{modifier}') { #{code} }; "
@@ -302,7 +308,10 @@ declare_components = (component_types) ->
             if el.type is 'checkbox'
               el.checked
             else if el.hasAttribute 'contenteditable'
-              el.textContent
+              if el.hasAttribute ':as-text'
+                el.innerText
+              else
+                el.innerHTML.trim()
             else
               el.value
           )
@@ -347,9 +356,9 @@ reactor.send = (element, name, args) ->
 
 _timeouts = {}
 
-debounce = (delay_name, delay) -> (...args) ->
+reactor.debounce = (delay_name, delay) -> (f) -> (...args) ->
   clearTimeout _timeouts[delay_name]
-  _timeouts[delay_name] = setTimeout (=> window.send(...args)), delay
+  _timeouts[delay_name] = setTimeout (=> f(...args)), delay
 
 reactor.push_state = (url) ->
   if history.pushState?
