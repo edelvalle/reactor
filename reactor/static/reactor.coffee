@@ -242,11 +242,6 @@ declare_components = (component_types) ->
               if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
 
-              # call before update method
-              code = from_el.getAttribute 'onreactor-beforeupdate'
-              if code and not (-> eval(code)).call from_el
-                  return false
-
               # Prevent updating the inputs that has the focus
               should_patch = (
                 from_el is document.activeElement and

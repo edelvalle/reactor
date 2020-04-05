@@ -112,7 +112,8 @@ This component ensures the user is logged in or redirects the user to the login 
 - `:load`: Causes a `reactor.push_states(this.href)` when the current element is clicked.
 - `:override`: By default reactor does not update an input value if you have the focus on it, by adding this attribute to that input reactor will update it even if you have the focus on it.
 - `:once`: Reactor will render this element and children once, and never update it again.
-- `:focus`: Sets the focus on this element after an update
+- `:focus`: Sets the focus on this element after an update'
+- `:persistent`: During a push state, if the element keeps the same ID from render to render, it is not re-rendered. Is kept as is.
 
 ### Event binding in the front-end
 
@@ -125,13 +126,29 @@ Look at this:
 The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]"`:
 
 - `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
-- `modifier`: can be concatenated after the event name and represent actions or conditions to be met, like `prevent`, calls `event.PreventDefault();`, `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press to send the message to the back-end. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html)
+- `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html):
+  - `prevent`: calls `event.preventDefault();`
+  - `stop`: calls (`event.stopPropagation();`), 
+  - `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press.
+  - `inlinejs`: allows you to write your custom JavaScript in the event handler.
+  - `debounce`: the bounces the event, it needs a name and the delay in milliseconds. Example: `@keypress.100.search.debounce='message'`. 
 - `event_name`: is the name of the message to be send to this component
 - The arguments can be completely omitted, or specified as a dictionary. 
 
 When the arguments are omitted reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
 
+### JS Hooks
+
+This are custom events triggered by reactor in different instants of the life cycle of the component.
+
+- `@reactor-init`: Triggered on the root element when the element appears for first time in the DOM.
+- `@reactor-leave`: Triggered on the root element when the element had been removed from the DOM.
+
+### Serialization
+
 Serialization of means to look at a chunk of HTML and extract the value of all elements with a `name` attribute in it. Reactor serialization supports nesting:
+
+Note on `contenteditable` elements, if they hava a name attribute they are serialized taking their inner HTML, if they have the special attribute `:as-text`, just their text is serialized.
 
 #### Example 1
 
