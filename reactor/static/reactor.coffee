@@ -357,21 +357,22 @@ reactor.debounce = (delay_name, delay) -> (f) -> (...args) ->
 
 reactor.push_state = (url) ->
   if history.pushState?
-    load_page url, true
+    load_page url
   else
     window.location.assign url
 
 window.addEventListener 'popstate',  ->
   load_page window.location.href
 
-load_page = (url, push=true) ->
+load_page = (url) ->
   console.log 'GOTO', url
   utf8_decoder = new TextDecoder("utf-8")
   fetch(url).then (response) ->
     if response.redirected
       load_page response.url
     else
-      history.pushState {}, '', url
+      if url isnt window.location.href
+        history.pushState {}, '', url
       reader = await response.body.getReader()
       done = false
       result = []
