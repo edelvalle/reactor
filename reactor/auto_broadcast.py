@@ -23,14 +23,15 @@ def broadcast_related(sender, instance, deleted=False, created=False):
     for field in sender._meta.get_fields():
         if isinstance(field, models.ForeignKey):
             fk_id = getattr(instance, field.attname)
-            fk_model_name = field.related_model._meta.model_name
-            fk_attr_name = field.related_query_name()
-            group_name = f'{fk_model_name}.{fk_id}.{fk_attr_name}'
-            broadcast(group_name)
-            if created:
-                broadcast(f'{group_name}.new')
-            if deleted:
-                broadcast(f'{group_name}.del')
+            if fk_id is not None:
+                fk_model_name = field.related_model._meta.model_name
+                fk_attr_name = field.related_query_name()
+                group_name = f'{fk_model_name}.{fk_id}.{fk_attr_name}'
+                broadcast(group_name)
+                if created:
+                    broadcast(f'{group_name}.new')
+                if deleted:
+                    broadcast(f'{group_name}.del')
         elif isinstance(field, models.ManyToManyField):
             fk_ids = getattr(instance, field.attname).values_list(
                 'id', flat=True
