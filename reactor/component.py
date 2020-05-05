@@ -96,6 +96,7 @@ class Component:
     def __init__(self, context, id=None):
         self._context = context
         self._destroy_sent = False
+        self._is_frozen = False
         self._redirected_to = None
         self._last_sent_html = ''
         self._diff = diff_match_patch()
@@ -128,6 +129,9 @@ class Component:
 
     # State persistence & front-end communication
 
+    def freeze(self):
+        self._is_frozen = True
+
     def refresh(self, **state):
         self.mount(**dict(self.serialize(), **state))
 
@@ -145,13 +149,11 @@ class Component:
         """
         return {'id': self.id}
 
+    # Redirects & rendering
+
     def send_destroy(self):
         self._destroy_sent = True
-        send_to_channel(
-            self._channel_name,
-            'remove',
-            id=self.id,
-        )
+        send_to_channel(self._channel_name, 'remove', id=self.id)
 
     def send_redirect(self, url,  *args, **kwargs):
         push_state = kwargs.pop('push_state', True)
@@ -162,6 +164,7 @@ class Component:
             else:
                 action = 'redirect'
             send_to_channel(self._channel_name, action, url=url)
+            self.freeze()
         else:
             self._redirected_to = url
 
@@ -190,7 +193,9 @@ class Component:
             ]
 
     def render(self):
-        if self._destroy_sent:
+        if self._is_frozen:
+            html = self._last_sent_html
+        elif self._destroy_sent:
             html = ''
         elif self._redirected_to:
             html = (

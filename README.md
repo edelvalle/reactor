@@ -113,7 +113,6 @@ This component ensures the user is logged in or redirects the user to the login 
 - `:override`: By default reactor does not update an input value if you have the focus on it, by adding this attribute to that input reactor will update it even if you have the focus on it.
 - `:once`: Reactor will render this element and children once, and never update it again.
 - `:focus`: Sets the focus on this element after an update'
-- `:persistent`: During a push state, if the element keeps the same ID from render to render, it is not re-rendered. Is kept as is.
 
 ### Event binding in the front-end
 

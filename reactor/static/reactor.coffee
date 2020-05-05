@@ -385,8 +385,7 @@ load_page = (url) ->
         morphdom document.documentElement, html,
           onNodeAdded: transpile
           onBeforeElUpdated: (from_el, to_el) ->
-            if (from_el.isEqualNode(to_el) or
-                from_el.hasAttribute(':persistent') and from_el.id is to_el.id)
+            if from_el.isEqualNode to_el
               return false
 
             transpile(to_el)
