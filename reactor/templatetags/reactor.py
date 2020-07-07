@@ -1,5 +1,6 @@
 import json
 from django import template
+from django.conf import settings
 from django.db.models import QuerySet, Model
 from django.template.loader import render_to_string
 from django.core.serializers.json import DjangoJSONEncoder
@@ -22,7 +23,11 @@ class ReactorJSONEncoder(DjangoJSONEncoder):
 
 @register.simple_tag
 def reactor_header():
-    return render_to_string('reactor_header.html')
+    include_tlinks = getattr(settings, 'REACTOR_INCLUDE_TURBOLINKS', False)
+    return render_to_string(
+        'reactor_header.html',
+        {'include_tlinks': include_tlinks}
+    )
 
 
 @register.simple_tag(takes_context=True)

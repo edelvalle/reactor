@@ -112,13 +112,7 @@ transpile = (el) ->
 
   replacements = []
   for attr in el.attributes
-    if attr.name is ':load'
-      replacements.push {
-        name: 'onclick'
-        code: 'event.preventDefault(); reactor.push_state(this.href);'
-      }
-
-    else if attr.name.startsWith('@')
+    if attr.name.startsWith('@')
       [name, ...modifiers] = attr.name.split('.')
       start = attr.value.indexOf(' ')
       if start isnt -1
@@ -356,43 +350,10 @@ reactor.debounce = (delay_name, delay) -> (f) -> (...args) ->
   _timeouts[delay_name] = setTimeout (=> f(...args)), delay
 
 reactor.push_state = (url) ->
-  if history.pushState?
-    load_page url
+  if Turbolinks?
+    Turbolinks.visit url
   else
     window.location.assign url
-
-window.addEventListener 'popstate',  ->
-  load_page window.location.href
-
-load_page = (url) ->
-  console.log 'GOTO', url
-  utf8_decoder = new TextDecoder("utf-8")
-  fetch(url).then (response) ->
-    if response.redirected
-      load_page response.url
-    else
-      if url isnt window.location.href
-        history.pushState {}, '', url
-      reader = await response.body.getReader()
-      done = false
-      result = []
-      until done
-        {done, value} = await reader.read()
-        value = if value then utf8_decoder.decode(value) else ''
-        result.push value
-      html = result.join('').trim()
-      window.requestAnimationFrame ->
-        morphdom document.documentElement, html,
-          onNodeAdded: transpile
-          onBeforeElUpdated: (from_el, to_el) ->
-            if from_el.isEqualNode to_el
-              return false
-
-            transpile(to_el)
-            true
-
-        document.querySelector('[autofocus]:not([disabled])')?.focus()
-
 
 reactor_channel.open()
 
