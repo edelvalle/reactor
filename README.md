@@ -65,6 +65,12 @@ In the templates where you want to use reactive components you have to load the 
 
 Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and then all is loaded they are executed.
 
+## Settings:
+
+- `REACTOR_AUTO_BROADCAST` (default: False), when enabled will activate listeners for every time a model is created, modified or deleted, and will broadcast a message related to that modification that you can subscribe to and use to refresh your components in real-time.
+
+- `REACTOR_INCLUDE_TURBOLINKS` (default: False), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
+
 ## Back-end APIs
 
 ### Template tags and filters of `react` library
@@ -109,7 +115,6 @@ This component ensures the user is logged in or redirects the user to the login 
 
 ### Special HTMLElement attributes
 
-- `:load`: Causes a `reactor.push_states(this.href)` when the current element is clicked.
 - `:override`: By default reactor does not update an input value if you have the focus on it, by adding this attribute to that input reactor will update it even if you have the focus on it.
 - `:once`: Reactor will render this element and children once, and never update it again.
 - `:focus`: Sets the focus on this element after an update'

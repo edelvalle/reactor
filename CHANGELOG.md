@@ -1,6 +1,17 @@
 # Change Log 
 
-## 1.5.1b0
+## 1.6.0b0 - Migration to Turbolinks
+
+### Added
+
+- `REACTOR_INCLUDE_TURBOLINKS` is a new setting, by default to `False`, when enabled will load Turbolinks as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
+
+### Removed
+
+- `:load` directive had been removed in favor of Tubolinks.
+
+
+## 1.5.1b0 - Improve broadcasting with parameters
 
 ### Added
 
