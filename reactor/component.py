@@ -62,14 +62,15 @@ class ComponentHerarchy(dict):
             return True, component.dispatch(name, state)
         return False, None
 
-    def propagate_update(self, origin):
+    def propagate_update(self, event):
+        origin = event['origin']
         for component in list(self.values()):
             if origin in component.subscriptions:
-                component.refresh()
+                component.update(**event)
                 html_diff = component.render_diff()
                 yield {'id': component.id, 'html_diff': html_diff}
             else:
-                yield from component._children.propagate_update(origin)
+                yield from component._children.propagate_update(event)
 
 
 class Component:
@@ -131,6 +132,10 @@ class Component:
 
     def freeze(self):
         self._is_frozen = True
+
+    def update(self, **kwargs):
+        """Entrypoint for broadcast events"""
+        return self.fresh()
 
     def refresh(self, **state):
         self.mount(**dict(self.serialize(), **state))
@@ -238,10 +243,10 @@ class StaffComponent(AuthComponent, public=False):
             self.send_redirect(settings.LOGIN_URL)
 
 
-def broadcast(*names):
+def broadcast(*names, **kwargs):
     for name in names:
         log.debug(f'<-> {name}')
-        send_to_group(name, 'update')
+        send_to_group(name, 'update', **kwargs)
 
 
 def on_commit(f):

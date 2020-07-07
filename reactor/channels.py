@@ -64,15 +64,16 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def receive_json(self, request):
         name = request['command']
         payload = request['payload']
-        log.debug(f'>>> {name.upper()} {payload}')
         getattr(self, f'receive_{name}')(**payload)
 
     def receive_join(self, tag_name, state):
+        log.debug(f'>>> JOIN {tag_name} {state}')
         component = self.root_component.get_or_create(tag_name, **state)
         html_diff = component.render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
     def receive_user_event(self, name, state):
+        log.debug(f'>>> USER_EVENT {name} {state}')
         component_found, html_diff = self.root_component.dispatch_user_event(
             name, state)
         if component_found:
@@ -90,14 +91,8 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def update(self, event):
         log.debug(f'>>> UPDATE {event}')
-        origin = event['origin']
-        no_one_responded_to_this_update = True
-        for event in self.root_component.propagate_update(origin):
-            self.render(event)
-            no_one_responded_to_this_update = False
-
-        if no_one_responded_to_this_update:
-            self.unsubscribe({'room_name': origin})
+        for render_event in self.root_component.propagate_update(event):
+            self.render(render_event)
 
     def send_component(self, event):
         log.debug(f'>>> DISPATCH {event}')
