@@ -17,6 +17,10 @@ up = os.path.dirname
 BASE_DIR = up(up(os.path.abspath(__file__)))
 
 
+REACTOR_AUTO_BROADCAST = True
+REACTOR_INCLUDE_TURBOLINKS = True
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 

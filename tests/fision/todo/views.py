@@ -5,6 +5,10 @@ from reactor.component import Component
 from .models import Item
 
 
+def index(request):
+    return render(request, 'index.html')
+
+
 def todo(request):
     return render(request, 'todo.html')
 
@@ -118,7 +122,3 @@ class XCounter(Component):
 
     def receive_set_to(self, amount, **kwargs):
         self.amount = amount
-
-
-def counter(request):
-    return render(request, 'counter.html')
