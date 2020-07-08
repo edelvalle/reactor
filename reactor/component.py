@@ -135,7 +135,7 @@ class Component:
 
     def update(self, **kwargs):
         """Entrypoint for broadcast events"""
-        return self.fresh()
+        return self.refresh()
 
     def refresh(self, **state):
         self.mount(**dict(self.serialize(), **state))
