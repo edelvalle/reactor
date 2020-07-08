@@ -1,1 +1,2 @@
+exclude tests
 recursive-include reactor/ *.html *.js *.css
