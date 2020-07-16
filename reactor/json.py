@@ -19,4 +19,20 @@ class Encoder(DjangoJSONEncoder):
         if hasattr(o, '__json__'):
             return o.__json__()
 
+        try:
+            import numpy as n
+        except ImportError:
+            pass
+        else:
+            number = (
+                n.ndarray,
+                n.float,
+                n.float16,
+                n.float32,
+                n.float64,
+                n.float128
+            )
+            if isinstance(o, number):
+                return o.tolist()
+
         return super().default(o)

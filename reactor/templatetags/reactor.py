@@ -1,24 +1,14 @@
 import json
 from django import template
 from django.conf import settings
-from django.db.models import QuerySet, Model
 from django.template.loader import render_to_string
-from django.core.serializers.json import DjangoJSONEncoder
 from django.utils.safestring import mark_safe
 
 
 from ..component import Component
+from ..json import Encoder
 
 register = template.Library()
-
-
-class ReactorJSONEncoder(DjangoJSONEncoder):
-    def default(self, o):
-        if isinstance(o, Model):
-            return o.id
-        if isinstance(o, QuerySet):
-            return list(o.values_list('id', flat=True))
-        return super().default(o)
 
 
 @register.simple_tag
@@ -53,7 +43,7 @@ def tojson_safe(value):
 
 @register.filter()
 def tojson(value):
-    return json.dumps(value, cls=ReactorJSONEncoder)
+    return json.dumps(value, cls=Encoder)
 
 
 @register.filter
