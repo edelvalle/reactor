@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.7.0b0 - Remove diffing, was very slow
+
+### Removed
+
+- Dependency on `diff_match_patch` had been removed, diffing was very very very slow.
+
 ## 1.6.1b0 - Numpy support
 
 ### Added
