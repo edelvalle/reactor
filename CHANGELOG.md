@@ -1,4 +1,10 @@
-# Change Log 
+# Change Log
+
+## 1.6.1b0 - Numpy support
+
+### Added
+
+- Add capability to serializer `numpy.array` and `numpy.float` as the component state.
 
 ## 1.6.0b0 - Migration to Turbolinks
 
