@@ -2,8 +2,6 @@ import logging
 from uuid import uuid4
 from functools import wraps
 
-from diff_match_patch import diff_match_patch
-
 from asgiref.sync import async_to_sync
 
 from django.conf import settings
@@ -100,7 +98,6 @@ class Component:
         self._is_frozen = False
         self._redirected_to = None
         self._last_sent_html = ''
-        self._diff = diff_match_patch()
         self._children = ComponentHerarchy(context=context)
         self.subscriptions = set()
         self.id = str(id or uuid4())
@@ -181,21 +178,11 @@ class Component:
             state=dict(kwargs, id=id or self.id),
         )
 
-    _diff_actions = {
-        -1: lambda content: -len(content),
-        0: lambda content: len(content),
-        1: lambda content: content
-    }
-
     def render_diff(self):
         html = self.render()
         if html and self._last_sent_html != html:
-            diff = self._diff.diff_main(self._last_sent_html, html)
             self._last_sent_html = html
-            return [
-                self._diff_actions[action](content)
-                for action, content in diff
-            ]
+            return html
 
     def render(self):
         if self._is_frozen:

@@ -176,7 +176,6 @@ declare_components = (component_types) ->
       constructor: (...args) ->
         super(...args)
         @tag_name = @getAttribute 'is'
-        @_last_received_html = ''
 
       connectedCallback: ->
         @deep_transpile()
@@ -213,20 +212,8 @@ declare_components = (component_types) ->
             tag_name: @tag_name
             state: state
 
-      apply_diff: (html_diff) ->
+      apply_diff: (html) ->
         console.log "#{new Date() - origin}ms"
-        html = []
-        cursor = 0
-        for diff in html_diff
-          if typeof diff is 'string'
-            html.push diff
-          else if diff < 0
-            cursor -= diff
-          else
-            html.push @_last_received_html[cursor...cursor + diff]
-            cursor += diff
-        html = html.join ''
-        @_last_received_html = html
         window.requestAnimationFrame =>
           morphdom this, html,
             onNodeAdded: transpile
