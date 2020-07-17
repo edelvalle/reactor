@@ -208,7 +208,7 @@ In your app create a template `x-counter.html`:
 {% load reactor %}
 <div is="x-counter" id="{{ this.id }}" state="{{ this.serialize|tojson }}">
   {{ this.amount }}
-  <button @click="inc">+</button>
+  <button @click="inc">+</button>first
   <button @click="dec">-</button>
   <button @click="set_to {amount: 0}">reset</button>
 </div>

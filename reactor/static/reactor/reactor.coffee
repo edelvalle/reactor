@@ -179,8 +179,8 @@ declare_components = (component_types) ->
         @_last_received_html = []
 
       connectedCallback: ->
-        @deep_transpile()
         eval @getAttribute 'onreactor-init'
+        @deep_transpile()
         @connect()
 
       disconnectedCallback: ->
@@ -194,6 +194,9 @@ declare_components = (component_types) ->
           element = this
         for child in element.children
           transpile child
+          code = child.getAttribute 'onreactor-init'
+          if code
+            (-> eval code).bind(child)()
           @deep_transpile(child)
 
       is_root: -> not @parent_component()
@@ -232,7 +235,7 @@ declare_components = (component_types) ->
             onNodeAdded: transpile
             onBeforeElUpdated: (from_el, to_el) =>
               # Prevent object from being updated
-
+              transpile(to_el)
               if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
 
@@ -246,15 +249,21 @@ declare_components = (component_types) ->
                 )
               )
               if should_patch
-                transpile(to_el)
                 to_el.getAttributeNames().forEach (name) ->
                   from_el.setAttribute(name, to_el.getAttribute(name))
                 from_el.readOnly = to_el.readOnly
-                transpile(from_el)
                 return false
 
-              transpile(to_el)
               return true
+            onElUpdated: (el) ->
+              code = el.getAttribute('onreactor-updated')
+              if code
+                (-> eval code).bind(el)()
+            onNodeAdded: (el) ->
+              code = el.getAttribute('onreactor-added')
+              if code
+                (-> eval code).bind(el)()
+
           @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
