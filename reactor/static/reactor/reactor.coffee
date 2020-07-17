@@ -232,7 +232,6 @@ declare_components = (component_types) ->
         html = html.join '\n'
         window.requestAnimationFrame =>
           morphdom this, html,
-            onNodeAdded: transpile
             onBeforeElUpdated: (from_el, to_el) =>
               # Prevent object from being updated
               transpile(to_el)
@@ -242,7 +241,7 @@ declare_components = (component_types) ->
               # Prevent updating the inputs that has the focus
               should_patch = (
                 from_el is document.activeElement and
-                not to_el.hasAttribute(':override')
+                not to_el.hasAttribute(':override') and
                 (
                   from_el.type in FOCUSABLE_INPUTS or
                   from_el.hasAttribute(':contenteditable')
@@ -256,11 +255,12 @@ declare_components = (component_types) ->
 
               return true
             onElUpdated: (el) ->
-              code = el.getAttribute('onreactor-updated')
+              code = el.getAttribute?('onreactor-updated')
               if code
                 (-> eval code).bind(el)()
             onNodeAdded: (el) ->
-              code = el.getAttribute('onreactor-added')
+              transpile el
+              code = el.getAttribute?('onreactor-added')
               if code
                 (-> eval code).bind(el)()
 
