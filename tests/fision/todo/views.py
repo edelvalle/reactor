@@ -102,23 +102,3 @@ class XTodoItem(Component):
         self.item.text = text
         self.item.save()
         self.editing = False
-
-
-class XCounter(Component):
-
-    template_name = 'x-counter.html'
-
-    def mount(self, amount=0, **kwargs):
-        self.amount = amount
-
-    def serialize(self):
-        return dict(id=self.id, amount=self.amount)
-
-    def receive_inc(self, **kwargs):
-        self.amount += 1
-
-    def receive_dec(self, **kwargs):
-        self.amount -= 1
-
-    def receive_set_to(self, amount, **kwargs):
-        self.amount = amount
