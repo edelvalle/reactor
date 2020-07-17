@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.8.2b0 - Hot fix
+
+## Fixed
+
+- Fix missing transpilation when a DOM node was added
+
 ## 1.8.1b0 - DOM hooks
 
 ## Added new reactor events
