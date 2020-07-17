@@ -117,7 +117,7 @@ class Component:
         state.setdefault('id', str(uuid4()))
         self.tag_name = tag_name
         self.state = state
-        self.last_received_html = ''
+        self.last_received_html = []
         self.doc = None
         self.removed = False
 
@@ -134,10 +134,12 @@ class Component:
             elif diff < 0:
                 cursor -= diff
             else:
-                html.append(self.last_received_html[cursor:cursor + diff])
+                html.extend(self.last_received_html[cursor:cursor + diff])
                 cursor += diff
-        self.last_received_html = ''.join(html)
-        self.doc = q(self.last_received_html)
+        self.last_received_html = html
+        from pprint import pprint
+        pprint(html)
+        self.doc = q('\n'.join(self.last_received_html))
 
         state = self.doc.attr['state']
         if state:
