@@ -1,10 +1,10 @@
 
-from django.conf import settings
 
+from .settings import AUTO_BROADCAST
 from .component import (  # noqa
     Component, AuthComponent, StaffComponent, on_commit, broadcast
 )
 
 
-if getattr(settings, 'REACTOR_AUTO_BROADCAST', False):
+if AUTO_BROADCAST:
     import reactor.auto_broadcast  # noqa

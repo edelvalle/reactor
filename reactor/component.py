@@ -5,7 +5,6 @@ from functools import wraps, reduce
 
 from asgiref.sync import async_to_sync
 
-from django.conf import settings
 from django.shortcuts import resolve_url
 from django.template import Context
 from django.template.loader import render_to_string
@@ -14,6 +13,7 @@ from django.utils.functional import cached_property
 
 from channels.layers import get_channel_layer
 
+from . import settings
 
 log = logging.getLogger('reactor')
 
@@ -183,20 +183,22 @@ class Component:
         html = self.render()
         html = html.splitlines()
         if html and self._last_sent_html != html:
-            diff = []
-            for x in difflib.ndiff(self._last_sent_html, html):
-                indicator = x[0]
-                if indicator == ' ':
-                    diff.append(1)
-                elif indicator == '+':
-                    diff.append(x[2:])
-                elif indicator == '-':
-                    diff.append(-1)
+            if settings.USE_HTML_DIFF:
+                diff = []
+                for x in difflib.ndiff(self._last_sent_html, html):
+                    indicator = x[0]
+                    if indicator == ' ':
+                        diff.append(1)
+                    elif indicator == '+':
+                        diff.append(x[2:])
+                    elif indicator == '-':
+                        diff.append(-1)
 
+                if diff:
+                    diff = reduce(compress_diff, diff[1:], diff[:1])
+            else:
+                diff = html
             self._last_sent_html = html
-
-            if diff:
-                diff = reduce(compress_diff, diff[1:], diff[:1])
             return diff
 
     def render(self):

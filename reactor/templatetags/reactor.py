@@ -1,22 +1,21 @@
 import json
 from django import template
-from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
 
 from ..component import Component
 from ..json import Encoder
+from ..settings import INCLUDE_TURBOLINKS
 
 register = template.Library()
 
 
 @register.simple_tag
 def reactor_header():
-    include_tlinks = getattr(settings, 'REACTOR_INCLUDE_TURBOLINKS', False)
     return render_to_string(
         'reactor_header.html',
-        {'include_tlinks': include_tlinks}
+        {'include_tlinks': INCLUDE_TURBOLINKS}
     )
 
 
