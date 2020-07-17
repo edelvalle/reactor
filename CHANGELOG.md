@@ -1,5 +1,12 @@
 # Change Log
 
+## 1.8.0b0 - Bring back optional diffing using difflib
+
+## Added
+
+- New setting `REACTOR_USE_HTML_DIFF` (default: `False`), it will use `difflib` to send the HTML diff, is a line based diff not a character based one but is very fast, not like `diff_match_patch`
+
+
 ## 1.7.0b0 - Remove diffing, was very slow
 
 ### Removed
