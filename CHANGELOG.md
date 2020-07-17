@@ -1,5 +1,16 @@
 # Change Log
 
+## 1.8.1b0 - DOM hooks
+
+## Added new reactor events
+
+- `@reactor-added`, when an HTML element is added
+- `@reactor-updated`, when an HTML element is updated
+
+## Changed
+
+- `@reactor-init`, is not triggered on any HTML element of a component when this one is initialized (appears for first time in the DOM).
+
 ## 1.8.0b0 - Bring back optional diffing using difflib
 
 ## Added
