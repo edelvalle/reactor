@@ -176,7 +176,7 @@ declare_components = (component_types) ->
       constructor: (...args) ->
         super(...args)
         @tag_name = @getAttribute 'is'
-        @_last_received_html = ''
+        @_last_received_html = []
 
       connectedCallback: ->
         @deep_transpile()
@@ -223,10 +223,10 @@ declare_components = (component_types) ->
           else if diff < 0
             cursor -= diff
           else
-            html.push @_last_received_html[cursor...cursor + diff]
+            html.push(...@_last_received_html[cursor...cursor + diff])
             cursor += diff
-        html = html.join ''
         @_last_received_html = html
+        html = html.join '\n'
         window.requestAnimationFrame =>
           morphdom this, html,
             onNodeAdded: transpile

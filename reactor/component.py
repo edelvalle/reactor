@@ -1,8 +1,7 @@
 import logging
+import difflib
 from uuid import uuid4
-from functools import wraps
-
-from diff_match_patch import diff_match_patch
+from functools import wraps, reduce
 
 from asgiref.sync import async_to_sync
 
@@ -99,8 +98,7 @@ class Component:
         self._destroy_sent = False
         self._is_frozen = False
         self._redirected_to = None
-        self._last_sent_html = ''
-        self._diff = diff_match_patch()
+        self._last_sent_html = []
         self._children = ComponentHerarchy(context=context)
         self.subscriptions = set()
         self.id = str(id or uuid4())
@@ -181,21 +179,25 @@ class Component:
             state=dict(kwargs, id=id or self.id),
         )
 
-    _diff_actions = {
-        -1: lambda content: -len(content),
-        0: lambda content: len(content),
-        1: lambda content: content
-    }
-
     def render_diff(self):
         html = self.render()
+        html = html.splitlines()
         if html and self._last_sent_html != html:
-            diff = self._diff.diff_main(self._last_sent_html, html)
+            diff = []
+            for x in difflib.ndiff(self._last_sent_html, html):
+                indicator = x[0]
+                if indicator == ' ':
+                    diff.append(1)
+                elif indicator == '+':
+                    diff.append(x[2:])
+                elif indicator == '-':
+                    diff.append(-1)
+
             self._last_sent_html = html
-            return [
-                self._diff_actions[action](content)
-                for action, content in diff
-            ]
+
+            if diff:
+                diff = reduce(compress_diff, diff[1:], diff[:1])
+            return diff
 
     def render(self):
         if self._is_frozen:
@@ -241,6 +243,18 @@ class StaffComponent(AuthComponent, public=False):
             return True
         else:
             self.send_redirect(settings.LOGIN_URL)
+
+
+def compress_diff(diff, diff_item):
+    if isinstance(diff_item, str) or isinstance(diff[-1], str):
+        diff.append(diff_item)
+    else:
+        same_sign = not (diff[-1] > 0) ^ (diff_item > 0)
+        if same_sign:
+            diff[-1] += diff_item
+        else:
+            diff.append(diff_item)
+    return diff
 
 
 def broadcast(*names, **kwargs):
