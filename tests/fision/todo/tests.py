@@ -17,7 +17,7 @@ class TestNormalRendering(TestCase):
         self.c = Client()
 
     def test_everything_two_tasks_are_rendered(self):
-        response = self.c.get('/')
+        response = self.c.get('/todo')
         assert response.status_code == 200
         self.assertContains(response, 'First task')
         self.assertContains(response, 'Second task')

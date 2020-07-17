@@ -8,6 +8,7 @@ from django.db.models.signals import post_save, pre_delete, m2m_changed
 @receiver(post_save)
 def broadcast_post_save(sender, instance, created=False, **kwargs):
     name = sender._meta.model_name
+    broadcast(name)
     if created:
         broadcast(f'{name}.new')
 
@@ -19,6 +20,7 @@ def broadcast_post_save(sender, instance, created=False, **kwargs):
 @receiver(pre_delete)
 def broadcast_post_delete(sender, instance, **kwargs):
     name = sender._meta.model_name
+    broadcast(name)
     if instance.pk is not None:
         broadcast(f'{name}.del')
         broadcast(f'{name}.{instance.pk}')
