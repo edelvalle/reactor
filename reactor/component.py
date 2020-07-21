@@ -1,12 +1,14 @@
 import logging
 import difflib
 from uuid import uuid4
+import json
 from functools import wraps, reduce
 
 from asgiref.sync import async_to_sync
 
 from django.shortcuts import resolve_url
 from django.template import Context
+from django.utils.html import escape
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 from django.utils.functional import cached_property
@@ -14,6 +16,7 @@ from django.utils.functional import cached_property
 from channels.layers import get_channel_layer
 
 from . import settings
+from .json import Encoder
 
 log = logging.getLogger('reactor')
 
@@ -86,6 +89,14 @@ class Component:
             cls._all[name] = cls
             cls._tag_name = name
         return super().__init_subclass__()
+
+    def __str__(self):
+        state = escape(json.dumps(self.serialize(), cls=Encoder))
+        return mark_safe(
+            f'is="{self._tag_name}" '
+            f'id="{self.id}" '
+            f'state="{state}"'
+        )
 
     # Constructors
 
