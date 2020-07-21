@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.8.3b0 - Syntax sugar
+
+## Added
+
+- Instead of writing `<div is="x-component" id="{{ this.id }}" state="{{ this.serialize|tojson }}">`, now you can do `<div {{ this|safe }} >`.
+
 ## 1.8.2b0 - Hot fix
 
 ## Fixed
