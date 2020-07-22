@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.8.4b0 - Middleware for turbolinks
+
+## Added
+
+- If you have turbolinks you need to add `reactor.middleware.turbolinks_middleware` to your `settings.MIDDLEWARE`, because of <https://github.com/turbolinks/turbolinks#following-redirects>
+
 ## 1.8.3b0 - Syntax sugar
 
 ## Added
