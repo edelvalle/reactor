@@ -8,7 +8,7 @@ README = open('README.md', encoding='utf-8').read()
 
 setup(
     name='django-reactor',
-    version='1.8.4b0',
+    version='1.9.0b0',
     url='https://github.com/edelvalle/reactor',
     author='Eddy Ernesto del Valle Pino',
     author_email='eddy@edelvalle.me',

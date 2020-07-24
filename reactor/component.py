@@ -186,7 +186,8 @@ class Component:
             self._redirected_to = url
 
     def send_parent(self, _name, **kwargs):
-        self.send(_name, id=self._parent_id, **kwargs)
+        if self._parent_id:
+            self.send(_name, id=self._parent_id, **kwargs)
 
     def send(self, _name, id=None, **kwargs):
         send_to_channel(

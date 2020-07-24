@@ -98,7 +98,9 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 - `mount(**kwargs)`: Loads the initial state of the component when is rendered from the back-end or it reconnects from the front-end (using the information created by `serialize`), it is also called in case a subscription of the component is triggered.
 - subscribe(*names): Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
 - `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`, if `push_state=False`, the redirect is done in hard HTML5 `pushState` is not used.
+- `send_destroy()`: Removes the component from the interface.
 - `send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
+- `send_parent(_name, kwargs)`: Sends a message with the name `_name` to the parent component.
 
 
 #### AuthComponent API

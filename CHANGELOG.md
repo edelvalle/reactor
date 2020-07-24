@@ -1,37 +1,53 @@
 # Change Log
 
+## 1.9.0b0 - Middleware for turbolinks
+
+### Added
+
+- Method `Component.send_parent` to send an event to the parent component.
+
+### Removed
+
+- Template filter `tojson_safe`, use piping of `tojson` into `safe` instead.
+
+### Changed
+
+- Template filter `tojson` now supports an integer argument corresponding to the `indent` parameter in `json.dumps`.
+- In the front-end there is the assumption that components IDs are unique, so this was also implemented as this in the back-end.
+
+
 ## 1.8.4b0 - Middleware for turbolinks
 
-## Added
+### Added
 
 - If you have turbolinks you need to add `reactor.middleware.turbolinks_middleware` to your `settings.MIDDLEWARE`, because of <https://github.com/turbolinks/turbolinks#following-redirects>
 
 ## 1.8.3b0 - Syntax sugar
 
-## Added
+### Added
 
 - Instead of writing `<div is="x-component" id="{{ this.id }}" state="{{ this.serialize|tojson }}">`, now you can do `<div {{ this|safe }} >`.
 
 ## 1.8.2b0 - Hot fix
 
-## Fixed
+### Fixed
 
 - Fix missing transpilation when a DOM node was added
 
 ## 1.8.1b0 - DOM hooks
 
-## Added new reactor events
+### Added new reactor events
 
 - `@reactor-added`, when an HTML element is added
 - `@reactor-updated`, when an HTML element is updated
 
-## Changed
+### Changed
 
 - `@reactor-init`, is not triggered on any HTML element of a component when this one is initialized (appears for first time in the DOM).
 
 ## 1.8.0b0 - Bring back optional diffing using difflib
 
-## Added
+### Added
 
 - New setting `REACTOR_USE_HTML_DIFF` (default: `False`), it will use `difflib` to send the HTML diff, is a line based diff not a character based one but is very fast, not like `diff_match_patch`
 
