@@ -36,13 +36,8 @@ def concat(value, arg):
 
 
 @register.filter()
-def tojson_safe(value):
-    return mark_safe(tojson(value))
-
-
-@register.filter()
-def tojson(value):
-    return json.dumps(value, cls=Encoder)
+def tojson(value, indent=None):
+    return json.dumps(value, cls=Encoder, indent=indent)
 
 
 @register.filter
