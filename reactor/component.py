@@ -21,48 +21,43 @@ from .json import Encoder
 log = logging.getLogger('reactor')
 
 
-class ComponentHerarchy(dict):
+class RootComponent(dict):
 
     def __init__(self, context):
         super().__init__()
         self._context = context
 
-    def get_or_create(self, _name, id=None, **state):
+    @cached_property
+    def _channel_name(self):
+        return self._context.get('channel_name')
+
+    def get_or_create(self, _name, _parent_id=None, id=None, **state):
         id = str(id or '')
         component = self.get(id)  # type: Component
         if component:
             component.refresh(**state)
         else:
-            component = Component.build(_name, context=self._context, id=id)
+            component = Component.build(
+                _name,
+                _context=self._context,
+                _root_component=self,
+                _parent_id=_parent_id,
+                id=id,
+            )
             component.mount(**state)
+            print('BUILDING', _name, component.id, _parent_id)
             self[component.id] = component
         return component
 
-    def look_up(self, id):
-        component = self.get(id)
-        if component:
-            return component
-        else:
-            for component in list(self.values()):
-                component = component._children.look_up(id)
-                if component:
-                    return component
-
     def pop(self, id, default=None):
-        component = super().pop(id, default)
-        if component:
-            return component
-        else:
-            for component in list(self.values()):
-                component = component._children.pop(id, default=default)
-                if component:
-                    return component
+        return super().pop(id, default)
 
     def dispatch_user_event(self, name, state):
-        component = self.look_up(state['id'])
+        component = self.get(state['id'])
         if component:
-            return True, component.dispatch(name, state)
-        return False, None
+            return component.dispatch(name, state)
+        else:
+            send_to_channel(self._channel_name, 'remove', id=state['id'])
 
     def propagate_update(self, event):
         origin = event['origin']
@@ -71,8 +66,6 @@ class ComponentHerarchy(dict):
                 component.update(**event)
                 html_diff = component.render_diff()
                 yield {'id': component.id, 'html_diff': html_diff}
-            else:
-                yield from component._children.propagate_update(event)
 
 
 class Component:
@@ -104,13 +97,23 @@ class Component:
     def build(cls, tag_name, *args, **kwargs):
         return cls._all[tag_name](*args, **kwargs)
 
-    def __init__(self, context, id=None):
-        self._context = context
+    def __init__(
+        self,
+        _context,
+        _root_component: RootComponent = None,
+        _parent_id=None,
+        id=None,
+    ):
+        self._context = _context
         self._destroy_sent = False
         self._is_frozen = False
         self._redirected_to = None
         self._last_sent_html = []
-        self._children = ComponentHerarchy(context=context)
+        if _root_component is None:
+            self._root_component = RootComponent(_context)
+        else:
+            self._root_component = _root_component
+        self._parent_id = _parent_id
         self.subscriptions = set()
         self.id = str(id or uuid4())
 
@@ -181,6 +184,9 @@ class Component:
             self.freeze()
         else:
             self._redirected_to = url
+
+    def send_parent(self, _name, **kwargs):
+        self.send(_name, id=self._parent_id, **kwargs)
 
     def send(self, _name, id=None, **kwargs):
         send_to_channel(

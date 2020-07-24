@@ -4,7 +4,7 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 
-from .component import ComponentHerarchy, Component
+from .component import RootComponent, Component
 from .json import Encoder
 
 
@@ -45,7 +45,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def connect(self):
         super().connect()
         self.scope['channel_name'] = self.channel_name
-        self.root_component = ComponentHerarchy(context=self.scope)
+        self.root_component = RootComponent(context=self.scope)
         self.send_json({
             'type': 'components',
             'component_types': {
@@ -74,15 +74,8 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def receive_user_event(self, name, state):
         log.debug(f'>>> USER_EVENT {name} {state}')
-        component_found, html_diff = self.root_component.dispatch_user_event(
-            name, state)
-        if component_found:
-            self.render({'id': state['id'], 'html_diff': html_diff})
-        else:
-            self.remove({
-                'type': 'remove',
-                'id': state['id'],
-            })
+        html_diff = self.root_component.dispatch_user_event(name, state)
+        self.render({'id': state['id'], 'html_diff': html_diff})
 
     def receive_leave(self, id, **kwargs):
         self.root_component.pop(id)

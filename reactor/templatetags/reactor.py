@@ -22,9 +22,14 @@ def reactor_header():
 def component(context, _name, id=None, **kwargs):
     parent = context.get('this')  # type: Component
     if parent:
-        component = parent._children.get_or_create(_name, id=id, **kwargs)
+        component = parent._root_component.get_or_create(
+            _name,
+            _parent_id=parent.id,
+            id=id,
+            **kwargs
+        )
     else:
-        component = Component.build(_name, context=context, id=id)
+        component = Component.build(_name, _context=context, id=id)
         component.mount(**kwargs)
     return component.render()
 
