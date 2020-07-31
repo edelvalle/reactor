@@ -1,14 +1,4 @@
 origin = new Date()
-FOCUSABLE_INPUTS = [
-  'text'
-  'textarea'
-  'number'
-  'email'
-  'password'
-  'search'
-  'tel'
-  'url'
-]
 
 
 class ReactorChannel
@@ -238,13 +228,14 @@ declare_components = (component_types) ->
               if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
                 return false
 
-              # Prevent updating the inputs that has the focus
+              if from_el.hasAttribute(':keep')
+                to_el.value = from_el.value
+                to_el.checked = from_el.checked
+
               should_patch = (
-                from_el is document.activeElement and
-                not to_el.hasAttribute(':override') and
-                (
-                  from_el.type in FOCUSABLE_INPUTS or
-                  from_el.hasAttribute(':contenteditable')
+                from_el is document.activeElement and (
+                  from_el.tagName in ['INPUT', 'SELECT', 'TEXTAREA'] or
+                  from_el.hasAttribute('contenteditable')
                 )
               )
               if should_patch
