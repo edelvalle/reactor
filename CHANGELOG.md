@@ -1,5 +1,37 @@
 # Change Log
 
+## 1.10.0b0 - Granular control over auto broadcast
+
+### Changed
+
+- The settings `REACTOR_AUTO_BROADCAST` can be a `bool` or a `dict`, if it is a `bool` it will enable/disable completely the auto broadcast of model changes. When a `dict` can be like:
+
+```python
+AUTO_BROADCAST = {
+    # model_a
+    # model_a.del
+    # model_a.new
+    'MODEL': True,
+
+    # model_a.1234
+    'MODEL_PK': True,
+
+    # model_b.1234.model_a_set
+    # model_b.1234.model_a_set.new
+    # model_b.1234.model_a_set.del
+    'RELATED': True,
+
+    # model_b.1234.model_a_set
+    # model_a.1234.model_b_set
+    'M2M': True,
+}
+```
+
+Each key controls an specific broadcast type, if a keys is missing `False` is assumed.
+
+- Template directive `:override` is gone, use `:keep` to preserve the `value` of an `input`, `select` or `textarea` HTML element from render to render.
+
+
 ## 1.9.0b0 - Middleware for turbolinks
 
 ### Added
