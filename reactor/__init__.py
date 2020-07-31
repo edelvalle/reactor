@@ -2,13 +2,10 @@ from django.core.checks import Warning, register
 from django.conf import settings as dj_settings
 
 from . import settings
+from . import auto_broadcast  # noqa
 from .component import (  # noqa
     Component, AuthComponent, StaffComponent, on_commit, broadcast
 )
-
-
-if settings.AUTO_BROADCAST:
-    import reactor.auto_broadcast  # noqa
 
 
 @register()
