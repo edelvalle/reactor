@@ -1,15 +1,14 @@
 from django.core.checks import Warning, register
-from django.conf import settings as dj_settings
 
-from . import settings
-from . import auto_broadcast  # noqa
-from .component import (  # noqa
-    Component, AuthComponent, StaffComponent, on_commit, broadcast
-)
+
+default_app_config = 'reactor.app.Reactor'
 
 
 @register()
 def check_for_turbolinks_middleware(app_configs, **kwargs):
+    from . import settings
+    from django.conf import settings as dj_settings
+
     reactor_middleware = 'reactor.middleware.turbolinks_middleware'
     problem = (
         settings.INCLUDE_TURBOLINKS and
