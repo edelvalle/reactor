@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.db import models
 from django.db.models.signals import post_save, pre_delete, m2m_changed
 
-from .component import broadcast
+from .utils import broadcast
 from .settings import AUTO_BROADCAST
 
 
