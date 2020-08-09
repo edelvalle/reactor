@@ -13,6 +13,6 @@ def get_asgi_application():
     urls = import_module(settings.ROOT_URLCONF)
     return ProtocolTypeRouter({
         'websocket': AuthMiddlewareStack(URLRouter(
-            urls.websocket_urlpatterns,  # <- For Django Reactor
+            urls.websocket_urlpatterns,
         ))
     })
