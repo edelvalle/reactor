@@ -1,5 +1,54 @@
 # Change Log
 
+## 2.0.0b0 - Changing the way reactor is loaded
+
+## Migration guide:
+
+- You will have to rewrite your `project/asgi.py` to something simpler:
+
+```python
+import os
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tutorial.settings')
+
+from reactor.asgi import ASGIHandler  # noqa
+
+application = ASGIHandler()
+```
+
+- The Reactor WebSocket URL changed from `/reactor` to `/__reactor__`.
+- You need to explicitly register the reactor URL in your `project/urls.py`:
+
+```python
+from django.contrib import admin
+from django.urls import path, include
+from reactor.channels import ReactorConsumer
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+]
+
+websocket_urlpatterns = [
+    # Temporal, to keep compatibility with old client while deploying
+    path('reactor', ReactorConsumer), 
+    
+    # Final URL, remove the previous one in the next deployment and use this one instead
+    path('__reactor__', ReactorConsumer),
+]
+```
+
+- Now you can place your components in a `live.py` module inside your application.
+
+## Added
+
+- Auto-load of the `live.py` file in all Django installed applications, aiming to discover the Reactor components.
+- `reactor.asgi.ASGIHandler` that will load the WebSocket URLs from your `project.urls.websocket_urlpatterns`, and use the Django ASGIHandler, not the `django-channels` one.
+
+## Removed
+
+- `reactor.urls` in favor of explicitly registering the URL where the Reactor consumer us.
+
+
 ## 1.10.0b0 - Granular control over auto broadcast
 
 ### Changed

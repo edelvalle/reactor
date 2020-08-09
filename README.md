@@ -70,7 +70,29 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 
 ## Settings:
 
-- `REACTOR_AUTO_BROADCAST` (default: `False`), when enabled will activate listeners for every time a model is created, modified or deleted, and will broadcast a message related to that modification that you can subscribe to and use to refresh your components in real-time.
+- `REACTOR_AUTO_BROADCAST` (default: `False`), when enabled will activate listeners for every time a model is created, modified or deleted, and will broadcast a message related to that modification that you can subscribe to and use to refresh your components in real-time, you can fine tune what kind of notification you want to get by turning this in a dictionary, for example:
+
+```python
+AUTO_BROADCAST = {
+    # model_a
+    # model_a.del
+    # model_a.new
+    'MODEL': True,
+
+    # model_a.1234
+    'MODEL_PK': True,
+
+    # model_b.1234.model_a_set
+    # model_b.1234.model_a_set.new
+    # model_b.1234.model_a_set.del
+    'RELATED': True,
+
+    # model_b.1234.model_a_set
+    # model_a.1234.model_b_set
+    'M2M': True,
+}
+```
+
 - `REACTOR_INCLUDE_TURBOLINKS` (default: `False`), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
 - `REACTOR_USE_HTML_DIFF` (default: `False`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
 
