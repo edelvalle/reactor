@@ -15,9 +15,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from reactor.channels import ReactorConsumer
 
 urlpatterns = [
     path('', include('fision.todo.urls')),
     # path('', include('fision.frontend.urls')),
     path('admin/', admin.site.urls),
+]
+
+websocket_urlpatterns = [
+    path('__reactor__', ReactorConsumer),
 ]

@@ -11,9 +11,9 @@ import os
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tutorial.settings')
 
-from reactor.asgi import ASGIHandler  # noqa
+from reactor.asgi import get_asgi_application  # noqa
 
-application = ASGIHandler()
+application = get_asgi_application()
 ```
 
 - The Reactor WebSocket URL changed from `/reactor` to `/__reactor__`.
@@ -42,11 +42,15 @@ websocket_urlpatterns = [
 ## Added
 
 - Auto-load of the `live.py` file in all Django installed applications, aiming to discover the Reactor components.
-- `reactor.asgi.ASGIHandler` that will load the WebSocket URLs from your `project.urls.websocket_urlpatterns`, and use the Django ASGIHandler, not the `django-channels` one.
+- `reactor.asgi.get_asgi_application` that will load the WebSocket URLs from your `project.urls.websocket_urlpatterns`.
 
 ## Removed
 
 - `reactor.urls` in favor of explicitly registering the URL where the Reactor consumer us.
+
+# Changed:
+
+- `REACTOR_USE_HTML_DIFF` is now enabled by default.
 
 
 ## 1.10.0b0 - Granular control over auto broadcast

@@ -94,7 +94,7 @@ AUTO_BROADCAST = {
 ```
 
 - `REACTOR_INCLUDE_TURBOLINKS` (default: `False`), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
-- `REACTOR_USE_HTML_DIFF` (default: `False`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
+- `REACTOR_USE_HTML_DIFF` (default: `True`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
 
 ## Back-end APIs
 

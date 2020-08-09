@@ -1,10 +1,7 @@
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
+import os
 
-from reactor.urls import websocket_urlpatterns
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'fision.settings')
 
-application = ProtocolTypeRouter({
-    'websocket': AuthMiddlewareStack(URLRouter(
-        websocket_urlpatterns,
-    ))
-})
+from reactor.asgi import get_asgi_application  # noqa
+
+application = get_asgi_application()
