@@ -10,44 +10,47 @@ This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow
 
 Reactor requires Python >=3.6.
 
-[Setup up your django-channels](https://channels.readthedocs.io/en/latest/installation.html) project beforehand.
-You will need to set up [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) as part of your configuration - Reactor won't work without Channel Layers enabled.
-
 Install reactor:
 
 ```bash
 pip install django-reactor
 ```
 
-Add `reactor` to your `INSTALLED_APPS`. Register the URL patterns of reactor in your your file where is the ASGI application, usually `<youproject>/asgi.py`, something like this:
+Reacto makes use of `django-channels`, by default this one uses an InMemory channel layer which is not capable of a real broadcasting, so you might wanna use the Redis one, take a look here: [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) 
+
+Add `reactor` and `channels` to your `INSTALLED_APPS` before the Django applications so channels can override the `runserver` command. 
+
+Register the reactor consumer at the url `/__reactor__` in your `project/urls.py` as in:
 
 ```python
-# flake8: noqa
+from django.contrib import admin
+from django.urls import path, include
+from reactor.channels import ReactorConsumer
 
-import os
+urlpatterns = [
+    path('admin/', admin.site.urls),
+]
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tourproject.settings')
-
-import django
-django.setup()
-
-
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
-from reactor.urls import websocket_urlpatterns  # <- for Django Reactor
-
-import yourproject.urls  # Pre load all components
-
-application = ProtocolTypeRouter({
-    'websocket': AuthMiddlewareStack(URLRouter(
-        websocket_urlpatterns, # <- For Django Reactor
-    ))
-})
+websocket_urlpatterns = [
+    path('__reactor__', ReactorConsumer),
+]
 ```
 
-Reactor does not search your code base for components so you have to pre-load them. So this will be the file to import them from where ever they are so they are available to be rendered.
+and modify your `project/asgi.py` file like:
 
-My personal philosophy is to have the components in the same files of the views where they are, this views are imported by urls.py. 
+```python
+import os
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tutorial.settings')
+
+from reactor.asgi import ASGIHandler  # noqa
+
+application = ASGIHandler()
+```
+
+Note 1: The reactor `ASGIHandler` will be load the URLs from your `project/urls.py` and the HTTP ones and the WebSocket ones, so if you need to add more WebSocket handlers feel free to add them to `websocket_urlpatterns`.
+
+Note 1: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
 
 In the templates where you want to use reactive components you have to load the reactor static files. So do something like this so the right JavaScript gets loaded:
 
@@ -69,7 +72,7 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 
 - `REACTOR_AUTO_BROADCAST` (default: `False`), when enabled will activate listeners for every time a model is created, modified or deleted, and will broadcast a message related to that modification that you can subscribe to and use to refresh your components in real-time.
 - `REACTOR_INCLUDE_TURBOLINKS` (default: `False`), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
-- `REACTOR_USE_HTML_DIFF` (default: `False`), when enabbled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
+- `REACTOR_USE_HTML_DIFF` (default: `False`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
 
 ## Back-end APIs
 
@@ -224,7 +227,7 @@ Render things as usually, so you can use full Django template language, `trans`,
 
 Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How this works? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
 
-Now let's write the behavior part of the component in `views.py`:
+Now let's write the behavior part of the component in `live.py`:
 
 ```python
 from reactor import Component

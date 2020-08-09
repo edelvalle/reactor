@@ -2,7 +2,7 @@ origin = new Date()
 
 
 class ReactorChannel
-  constructor: (@url='/reactor', @retry_interval=100) ->
+  constructor: (@url='/__reactor__', @retry_interval=100) ->
     @online = false
     @callbacks = {}
     @original_retry_interval = @retry_interval
