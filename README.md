@@ -20,11 +20,19 @@ Reacto makes use of `django-channels`, by default this one uses an InMemory chan
 
 Add `reactor` and `channels` to your `INSTALLED_APPS` before the Django applications so channels can override the `runserver` command. 
 
+```python
+INSTALLED_APPS = [
+    'reactor',
+    'channels',
+    ...
+]
+```
+
 Register the reactor consumer at the url `/__reactor__` in your `project/urls.py` as in:
 
 ```python
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from reactor.channels import ReactorConsumer
 
 urlpatterns = [
@@ -41,11 +49,11 @@ and modify your `project/asgi.py` file like:
 ```python
 import os
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tutorial.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project_name.settings')
 
-from reactor.asgi import ASGIHandler  # noqa
+from reactor.asgi import get_asgi_application  # noqa
 
-application = ASGIHandler()
+application = get_asgi_application()
 ```
 
 Note 1: The reactor `ASGIHandler` will be load the URLs from your `project/urls.py` and the HTTP ones and the WebSocket ones, so if you need to add more WebSocket handlers feel free to add them to `websocket_urlpatterns`.
