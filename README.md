@@ -32,7 +32,7 @@ INSTALLED_APPS = [
 ASGI_APPLICATION = 'project_name.asgi.application'
 ```
 
-Register the reactor consumer at the url `/__reactor__` in your `project/urls.py` as in:
+Register the reactor consumer at the url `/__reactor__` in your `project_name/urls.py` as in:
 
 ```python
 from django.contrib import admin
@@ -48,7 +48,7 @@ websocket_urlpatterns = [
 ]
 ```
 
-and modify your `project/asgi.py` file like:
+and modify your `project_name/asgi.py` file like:
 
 ```python
 import os
@@ -60,7 +60,7 @@ from reactor.asgi import get_asgi_application  # noqa
 application = get_asgi_application()
 ```
 
-Note 1: The reactor `ASGIHandler` will be load the URLs from your `project/urls.py` and the HTTP ones and the WebSocket ones, so if you need to add more WebSocket handlers feel free to add them to `websocket_urlpatterns`.
+Note 1: The reactor `ASGIHandler` will be load the URLs from your `project_name/urls.py` and the HTTP ones and the WebSocket ones, so if you need to add more WebSocket handlers feel free to add them to `websocket_urlpatterns`.
 
 Note 1: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
 
