@@ -69,7 +69,9 @@ def broadcast_related(sender, instance, deleted=False, created=False):
 
 if M2M:
     @receiver(m2m_changed)
-    def broadcast_m2m_changed(sender, instance, action, model, pk_set, **kwargs):
+    def broadcast_m2m_changed(
+        sender, instance, action, model, pk_set, **kwargs
+    ):
         if action.startswith('post_') and instance.pk:
             model_name = model._meta.model_name
             attr_name = get_name_of(sender, model)
