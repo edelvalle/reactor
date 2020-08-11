@@ -26,6 +26,10 @@ INSTALLED_APPS = [
     'channels',
     ...
 ]
+
+...
+
+ASGI_APPLICATION = 'project_name.asgi.application'
 ```
 
 Register the reactor consumer at the url `/__reactor__` in your `project/urls.py` as in:
