@@ -166,14 +166,9 @@ class Component:
         send_to_channel(self._channel_name, 'remove', id=self.id)
 
     def send_redirect(self, url,  *args, **kwargs):
-        push_state = kwargs.pop('push_state', True)
         url = resolve_url(url, *args, **kwargs)
         if self._channel_name:
-            if push_state:
-                action = 'push_state'
-            else:
-                action = 'redirect'
-            send_to_channel(self._channel_name, action, url=url)
+            send_to_channel(self._channel_name, 'push_state', url=url)
             self.freeze()
         else:
             self._redirected_to = url
