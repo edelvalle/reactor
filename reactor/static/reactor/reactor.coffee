@@ -284,27 +284,28 @@ declare_components = (component_types) ->
 
         state = {id: @id}
         for el in form.querySelectorAll('[name]')
-          value = (
-            if el.type.toLowerCase() is 'checkbox'
-              el.checked
-            else if el.type.toLowerCase() is 'select-multiple'
-              (option.value for option in el.selectedOptions)
-            else if el.hasAttribute 'contenteditable'
-              if el.hasAttribute ':as-text'
-                el.innerText
+          if el.closest('[is]') is this
+            value = (
+              if el.type.toLowerCase() is 'checkbox'
+                el.checked
+              else if el.type.toLowerCase() is 'select-multiple'
+                (option.value for option in el.selectedOptions)
+              else if el.hasAttribute 'contenteditable'
+                if el.hasAttribute ':as-text'
+                  el.innerText
+                else
+                  el.innerHTML.trim()
               else
-                el.innerHTML.trim()
-            else
-              el.value
-          )
-          for part in el.getAttribute('name').split('.').reverse()
-            obj = {}
-            if part.endsWith('[]')
-              obj[part[...-2]] = [value]
-            else
-              obj[part] = value
-            value = obj
-          state = merge_objects state, value
+                el.value
+            )
+            for part in el.getAttribute('name').split('.').reverse()
+              obj = {}
+              if part.endsWith('[]')
+                obj[part[...-2]] = [value]
+              else
+                obj[part] = value
+              value = obj
+            state = merge_objects state, value
         state
 
     customElements.define(component_name, Component, extends: base_html_element)
