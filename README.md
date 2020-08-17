@@ -2,6 +2,8 @@
 
 Reactor enables you to do something similar to Phoenix framework LiveView using Django Channels.
 
+![TODO MVC demo app](demo.gif)
+
 ## What's in the box?
 
 This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow you use all the potential of Django to create interactive front-ends. This method has its drawbacks because if connection is lost to the server the components in the front-end go busted until connection is re-established. But also has some advantages, as everything is server side rendered the interface comes already with meaningful information in the first request response, you can use all the power of Django template without limitations, if connection is lost or a component crashes, the front-end will have enough information to rebuild their state in the last good known state.
