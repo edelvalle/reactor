@@ -1,11 +1,11 @@
-import json
 import logging
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from channels.generic.websocket import JsonWebsocketConsumer
 
+from . import json
 from .component import RootComponent, Component
-from .json import Encoder
 
 
 log = logging.getLogger('reactor')
@@ -67,13 +67,19 @@ class ReactorConsumer(JsonWebsocketConsumer):
         getattr(self, f'receive_{name}')(**payload)
 
     def receive_join(self, tag_name, state):
-        log.debug(f'>>> JOIN {tag_name} {state}')
+        if settings.DEBUG:
+            log.debug(f'>>> JOIN {tag_name} {state.as_dict()}')
+        else:
+            log.debug(f'>>> JOIN {tag_name} {state}')
         component = self.root_component.get_or_create(tag_name, **state)
         html_diff = component.render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
     def receive_user_event(self, name, state):
-        log.debug(f'>>> USER_EVENT {name} {state}')
+        if settings.DEBUG:
+            log.debug(f'>>> USER_EVENT {name} {state.as_dict()}')
+        else:
+            log.debug(f'>>> USER_EVENT {name} {state}')
         html_diff = self.root_component.dispatch_user_event(name, state)
         self.render({'id': state['id'], 'html_diff': html_diff})
 
@@ -112,5 +118,9 @@ class ReactorConsumer(JsonWebsocketConsumer):
         self.send_json(dict(event, type='push_state'))
 
     @classmethod
+    def decode_json(cls, text_data):
+        return json.loads(text_data)
+
+    @classmethod
     def encode_json(cls, content):
-        return json.dumps(content, cls=Encoder)
+        return json.dumps(content)

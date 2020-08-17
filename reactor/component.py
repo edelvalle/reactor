@@ -1,17 +1,15 @@
 import difflib
 from uuid import uuid4
-import json
 from functools import reduce
 
 from django.shortcuts import resolve_url
-from django.template import Context
+from django.template.loader import get_template, select_template
 from django.utils.html import escape
-from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 from django.utils.functional import cached_property
 
 from . import settings
-from .json import Encoder
+from . import json
 from .utils import send_to_channel
 
 
@@ -27,7 +25,7 @@ class RootComponent(dict):
 
     def get_or_create(self, _name, _parent_id=None, id=None, **state):
         id = str(id or '')
-        component = self.get(id)  # type: Component
+        component: Component = self.get(id)
         if component:
             component.refresh(**state)
         else:
@@ -46,7 +44,7 @@ class RootComponent(dict):
         return super().pop(id, default)
 
     def dispatch_user_event(self, name, state):
-        component = self.get(state['id'])
+        component: Component = self.get(state['id'])
         if component:
             return component.dispatch(name, state)
         else:
@@ -77,7 +75,7 @@ class Component:
         return super().__init_subclass__()
 
     def __str__(self):
-        state = escape(json.dumps(self.serialize(), cls=Encoder))
+        state = escape(json.dumps(self.serialize()))
         return mark_safe(
             f'is="{self._tag_name}" '
             f'id="{self.id}" '
@@ -220,12 +218,16 @@ class Component:
                 f'>'
             )
         else:
-            if self.template:
-                html = self.template.render(Context({'this': self}))
-            else:
-                html = render_to_string(self.template_name, {'this': self})
-            html = html.strip()
+            html = self._get_template().render({'this': self}).strip()
         return mark_safe(html)
+
+    def _get_template(self):
+        if self.template:
+            return self.template
+        elif isinstance(self.template_name, (list, tuple)):
+            return select_template(self.template_name)
+        else:
+            return get_template(self.template_name)
 
 
 class AuthComponent(Component, public=False):

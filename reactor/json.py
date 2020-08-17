@@ -1,7 +1,19 @@
+import simdjson
 from typing import Generator
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
+
+
+parser = simdjson.Parser()
+
+
+def loads(text_data):
+    return parser.parse(text_data)
+
+
+def dumps(obj):
+    return simdjson.dumps(obj, cls=Encoder)
 
 
 class Encoder(DjangoJSONEncoder):
