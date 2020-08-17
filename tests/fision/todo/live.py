@@ -7,13 +7,15 @@ from .models import Item
 class XTodoList(Component):
     template_name = 'todo/list.html'
 
-    def mount(self, showing='all', **kwargs):
+    def mount(self, showing='all', new_item='', **kwargs):
         self.showing = showing
+        self.new_item = new_item
         self.subscribe('item.new')
 
     def serialize(self):
         return dict(
             id=self.id,
+            new_item=self.new_item,
             showing=self.showing,
         )
 

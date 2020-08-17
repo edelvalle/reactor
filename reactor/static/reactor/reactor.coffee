@@ -220,19 +220,14 @@ declare_components = (component_types) ->
           morphdom this, html,
             onBeforeElUpdated: (from_el, to_el) =>
               # Prevent object from being updated
-              transpile(to_el)
-              if from_el.hasAttribute(':once') or from_el.isEqualNode(to_el)
+              if from_el.hasAttribute(':once')
                 return false
 
-              if from_el.hasAttribute(':keep')
-                to_el.value = from_el.value
-                to_el.checked = from_el.checked
+              transpile(to_el)
 
               should_patch = (
-                from_el is document.activeElement and (
-                  from_el.tagName in ['INPUT', 'SELECT', 'TEXTAREA'] or
-                  from_el.hasAttribute('contenteditable')
-                )
+                from_el is document.activeElement and 
+                not from_el.hasAttribute(':override')
               )
               if should_patch
                 to_el.getAttributeNames().forEach (name) ->
