@@ -30,6 +30,7 @@ class XTodoList(Component):
     @atomic
     def receive_add(self, new_item, **kwargs):
         Item.objects.create(text=new_item)
+        self.new_item = ''
 
     def receive_show(self, showing, **kwargs):
         self.showing = showing

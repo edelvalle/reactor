@@ -154,7 +154,7 @@ This component ensures the user is logged in or redirects the user to the login 
 
 ### Special HTMLElement attributes
 
-- `:keep`: Prevents the value of an `input`, `select` or `textarea` to be override from the server, preserving the values the user saw from the first render or typed.
+- `:override`: When an input is being updated and the user has the focus there reactor by default will not update the input field value, use `:override` to do otherwise.
 - `:once`: Reactor will render this element and children once, and never update it again.
 - `:focus`: Sets the focus on this element after an HTML update.
 
@@ -247,8 +247,8 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<div {{ this }}>
-  {{ this.amount }}
+<div {{ header }}>
+  {{ amount }}
   <button @click="inc">+</button>
   <button @click="dec">-</button>
   <button @click="set_to {amount: 0}">reset</button>

@@ -225,12 +225,12 @@ class Component:
         return mark_safe(html)
 
     def _get_template(self):
-        if self.template:
-            return self.template
-        elif isinstance(self.template_name, (list, tuple)):
-            return select_template(self.template_name)
-        else:
-            return get_template(self.template_name)
+        if not self.template:
+            if isinstance(self.template_name, (list, tuple)):
+                self.template = select_template(self.template_name)
+            else:
+                self.template = get_template(self.template_name)
+        return self.template
 
     def _get_context(self):
         return dict(

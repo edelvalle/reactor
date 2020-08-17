@@ -1,8 +1,38 @@
 # Change Log
 
+## 2.1.0b0 - Templates simplification and performance improvements
+
+## Changed
+
+- Performance improvements in the front-end using `HTMLElement.closest` to lookup parent component and form.
+- Performance improvements by using `pysimdjson`.
+- Rename `Component.refresh` -> `Component._refresh`.
+- Rename `Component.build` -> `Component._build`.
+- Rename `Component.dispatch` -> `Component._dispatch`.
+- Rename `Component.update` -> `Component._update`.
+- Rename `Component.render` -> `Component._render`.
+- Rename `Component.render_diff` -> `Component._render_diff`.
+- Rename `Component.subscriptions` -> `Component._subcriptions`.
+- Rename `Component.refresh` -> `Component._refresh`.
+- Now in the component template you don't need to use `this`, you can access directly members of the component that are public (that do not start with "_"). The `this` attribute will be removed in version 2.2.
+- As you can't us {{ this }} anymore, use {{ header }} instead.
+- When `AuthComponent` or `StaffComponent` detect an unauthorized user they do not send a redirect to the login URL, they just destroy themselves.
+- Removed :keep in favor of :override, if the user has the focus on an input reactor will not update it's value, add the directive :override replace what ever the user has there.
+
+## Added
+
+- `Compnent._get_template` loads the template from Component.template_names as it works in django generic views.
+- `Component._get_context` returns the context used to rendering the template.
+- Serialization of multi-select to send to the back-end.
+- `Component.header` returns the string to put on the head of the component.
+
+###  Fixed
+
+- Now a component does not serialize the all it's children state, just it's direct state to send to the server.
+
 ## 2.0.0b0 - Changing the way reactor is loaded
 
-## Migration guide:
+### Migration guide:
 
 - You will have to rewrite your `project/asgi.py` to something simpler:
 
@@ -39,16 +69,16 @@ websocket_urlpatterns = [
 
 - Now you can place your components in a `live.py` module inside your application.
 
-## Added
+### Added
 
 - Auto-load of the `live.py` file in all Django installed applications, aiming to discover the Reactor components.
 - `reactor.asgi.get_asgi_application` that will load the WebSocket URLs from your `project.urls.websocket_urlpatterns`.
 
-## Removed
+### Removed
 
 - `reactor.urls` in favor of explicitly registering the URL where the Reactor consumer us.
 
-# Changed:
+### Changed:
 
 - `REACTOR_USE_HTML_DIFF` is now enabled by default.
 
