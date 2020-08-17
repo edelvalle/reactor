@@ -192,11 +192,7 @@ declare_components = (component_types) ->
       is_root: -> not @parent_component()
 
       parent_component: ->
-        component = @parentElement
-        while component
-          if component.getAttribute 'is'
-            return component
-          component = component.parentElement
+        return @parentElement?.closest('[is]')
 
       connect: ->
         if @is_root()
