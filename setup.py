@@ -8,7 +8,7 @@ README = open('README.md', encoding='utf-8').read()
 
 setup(
     name='django-reactor',
-    version='2.0.0b0',
+    version='2.1.0b0',
     url='https://github.com/edelvalle/reactor',
     author='Eddy Ernesto del Valle Pino',
     author_email='eddy@edelvalle.me',
@@ -22,6 +22,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'channels>=2.2.0,<2.5',
+        'pysimdjson>=2.5.1,<2.6',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
