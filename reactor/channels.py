@@ -72,7 +72,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
         else:
             log.debug(f'>>> JOIN {tag_name} {state}')
         component = self.root_component.get_or_create(tag_name, **state)
-        html_diff = component.render_diff()
+        html_diff = component._render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
     def receive_user_event(self, name, state):

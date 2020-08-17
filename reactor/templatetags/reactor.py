@@ -29,9 +29,9 @@ def component(context, _name, id=None, **kwargs):
             **kwargs
         )
     else:
-        component = Component.build(_name, _context=context, id=id)
+        component = Component._build(_name, _context=context, id=id)
         component.mount(**kwargs)
-    return component.render()
+    return component._render()
 
 
 @register.filter

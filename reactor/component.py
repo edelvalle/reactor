@@ -27,9 +27,9 @@ class RootComponent(dict):
         id = str(id or '')
         component: Component = self.get(id)
         if component:
-            component.refresh(**state)
+            component._refresh(**state)
         else:
-            component = Component.build(
+            component = Component._build(
                 _name,
                 _context=self._context,
                 _root_component=self,
@@ -46,16 +46,16 @@ class RootComponent(dict):
     def dispatch_user_event(self, name, state):
         component: Component = self.get(state['id'])
         if component:
-            return component.dispatch(name, state)
+            return component._dispatch(name, state)
         else:
             send_to_channel(self._channel_name, 'remove', id=state['id'])
 
     def propagate_update(self, event):
         origin = event['origin']
         for component in list(self.values()):
-            if origin in component.subscriptions:
-                component.update(**event)
-                html_diff = component.render_diff()
+            if origin in component._subscriptions:
+                component._update(**event)
+                html_diff = component._render_diff()
                 yield {'id': component.id, 'html_diff': html_diff}
 
 
@@ -82,10 +82,13 @@ class Component:
             f'state="{state}"'
         )
 
+    def header(self):
+        return str(self)
+
     # Constructors
 
     @classmethod
-    def build(cls, tag_name, *args, **kwargs):
+    def _build(cls, tag_name, *args, **kwargs):
         return cls._all[tag_name](*args, **kwargs)
 
     def __init__(
@@ -105,15 +108,15 @@ class Component:
         else:
             self._root_component = _root_component
         self._parent_id = _parent_id
-        self.subscriptions = set()
+        self._subscriptions = set()
         self.id = str(id or uuid4())
 
     # User events
 
     def subscribe(self, *room_names):
         for room_name in room_names:
-            if room_name not in self.subscriptions:
-                self.subscriptions.add(room_name)
+            if room_name not in self._subscriptions:
+                self._subscriptions.add(room_name)
                 send_to_channel(
                     self._channel_name,
                     'subscribe',
@@ -121,26 +124,26 @@ class Component:
                 )
 
     def unsubscribe(self, room_name):
-        self.subscriptions.discard(room_name)
+        self._subscriptions.discard(room_name)
 
     @cached_property
     def _channel_name(self):
         return self._context.get('channel_name')
 
-    def dispatch(self, name, args=None):
+    def _dispatch(self, name, args=None):
         getattr(self, f'receive_{name}')(**(args or {}))
-        return self.render_diff()
+        return self._render_diff()
 
     # State persistence & front-end communication
 
-    def freeze(self):
+    def freeze(self, *args, **kwargs):
         self._is_frozen = True
 
-    def update(self, **kwargs):
+    def _update(self, **kwargs):
         """Entrypoint for broadcast events"""
-        return self.refresh()
+        return self._refresh()
 
-    def refresh(self, **state):
+    def _refresh(self, **state):
         self.mount(**dict(self.serialize(), **state))
 
     def mount(self, **state):
@@ -183,8 +186,8 @@ class Component:
             state=dict(kwargs, id=id or self.id),
         )
 
-    def render_diff(self):
-        html = self.render()
+    def _render_diff(self):
+        html = self._render()
         html = html.splitlines()
         if html and self._last_sent_html != html:
             if settings.USE_HTML_DIFF:
@@ -205,7 +208,7 @@ class Component:
             self._last_sent_html = html
             return diff
 
-    def render(self):
+    def _render(self):
         if self._is_frozen:
             html = self._last_sent_html
         elif self._destroy_sent:
@@ -218,7 +221,7 @@ class Component:
                 f'>'
             )
         else:
-            html = self._get_template().render({'this': self}).strip()
+            html = self._get_template().render(self._get_context()).strip()
         return mark_safe(html)
 
     def _get_template(self):
@@ -228,6 +231,16 @@ class Component:
             return select_template(self.template_name)
         else:
             return get_template(self.template_name)
+
+    def _get_context(self):
+        return dict(
+            {
+                attribute: getattr(self, attribute)
+                for attribute in dir(self)
+                if not attribute.startswith('_')
+            },
+            this=self,
+        )
 
 
 class AuthComponent(Component, public=False):
