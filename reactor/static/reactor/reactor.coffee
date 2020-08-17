@@ -294,8 +294,10 @@ declare_components = (component_types) ->
         state = {id: @id}
         for el in form.querySelectorAll('[name]')
           value = (
-            if el.type is 'checkbox'
+            if el.type.toLowerCase() is 'checkbox'
               el.checked
+            else if el.type.toLowerCase() is 'select-multiple'
+              (option.value for option in el.selectedOptions)
             else if el.hasAttribute 'contenteditable'
               if el.hasAttribute ':as-text'
                 el.innerText
