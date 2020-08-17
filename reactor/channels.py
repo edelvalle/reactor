@@ -75,15 +75,15 @@ class ReactorConsumer(JsonWebsocketConsumer):
         html_diff = component._render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
-    def receive_user_event(self, name, state):
+    def receive_user_event(self, id, name, args):
         if settings.DEBUG:
-            log.debug(f'>>> USER_EVENT {name} {state.as_dict()}')
+            log.debug(f'>>> USER_EVENT {name} {args.as_dict()}')
         else:
-            log.debug(f'>>> USER_EVENT {name} {state}')
-        html_diff = self.root_component.dispatch_user_event(name, state)
-        self.render({'id': state['id'], 'html_diff': html_diff})
+            log.debug(f'>>> USER_EVENT {name} {args}')
+        html_diff = self.root_component.dispatch_user_event(id, name, args)
+        self.render({'id': id, 'html_diff': html_diff})
 
-    def receive_leave(self, id, **kwargs):
+    def receive_leave(self, id):
         self.root_component.pop(id)
 
     # Internal event

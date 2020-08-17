@@ -43,12 +43,12 @@ class RootComponent(dict):
     def pop(self, id, default=None):
         return super().pop(id, default)
 
-    def dispatch_user_event(self, name, state):
-        component: Component = self.get(state['id'])
+    def dispatch_user_event(self, id, name, args):
+        component: Component = self.get(id)
         if component:
-            return component._dispatch(name, state)
+            return component._dispatch(name, args)
         else:
-            send_to_channel(self._channel_name, 'remove', id=state['id'])
+            send_to_channel(self._channel_name, 'remove', id=id)
 
     def propagate_update(self, event):
         origin = event['origin']

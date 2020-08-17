@@ -46,10 +46,26 @@ class ReactorChannel
       command: command
       payload: payload
     if @online
-      try
-        @websocket.send JSON.stringify data
-      catch
-        console.log 'Failed sending'
+      @websocket.send JSON.stringify data
+
+  send_join: (tag_name, state) ->
+    console.log '>>> JOIN', tag_name, state
+    @send 'join',
+      tag_name: tag_name
+      state: state
+
+  send_leave: (id) -> 
+    console.log '>>> LEAVE', id
+    @send 'leave', id: id
+
+  send_user_event: (element, name, args) ->
+    console.log '>>> USER_EVENT', element.tag_name, name, args
+    origin = new Date()
+    if @online
+      @send 'user_event',
+        id: element.id
+        name: name
+        args: args
 
   reconnect: ->
     @retry_interval = 0
@@ -168,6 +184,8 @@ declare_components = (component_types) ->
         @tag_name = @getAttribute 'is'
         @_last_received_html = []
 
+      state: -> JSON.parse @getAttribute 'state'
+
       connectedCallback: ->
         eval @getAttribute 'onreactor-init'
         @deep_transpile()
@@ -175,8 +193,7 @@ declare_components = (component_types) ->
 
       disconnectedCallback: ->
         eval @getAttribute 'onreactor-leave'
-        console.log '>>> LEAVE', @id
-        reactor_channel.send 'leave', id: @id
+        reactor_channel.send_leave @id
 
       deep_transpile: (element=null) ->
         if not element?
@@ -196,11 +213,7 @@ declare_components = (component_types) ->
 
       connect: ->
         if @is_root()
-          console.log '>>> JOIN', @tag_name
-          state = JSON.parse @getAttribute 'state'
-          reactor_channel.send 'join',
-            tag_name: @tag_name
-            state: state
+          reactor_channel.send_join @tag_name, @state()
 
       apply_diff: (html_diff) ->
         console.log "#{new Date() - origin}ms"
@@ -249,17 +262,8 @@ declare_components = (component_types) ->
           @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
-        if args
-          state = args
-        else
-          state = @serialize form or this
-
-        state['id'] = @id
-        console.log '>>> USER_EVENT', @tag_name, name, state
-        origin = new Date()
-        reactor_channel.send 'user_event',
-          name: name
-          state: state
+        args = merge_objects (@serialize form or this), args
+        reactor_channel.send_user_event(this, name, args)
 
       serialize: (form) ->
         # Serialize the fields with name attribute and creates a dictionary
@@ -282,7 +286,7 @@ declare_components = (component_types) ->
         #   <input name="persons[].name" value="b">
         # Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
 
-        state = {id: @id}
+        state = {}
         for el in form.querySelectorAll('[name]')
           if el.closest('[is]') is this
             value = (
@@ -308,19 +312,18 @@ declare_components = (component_types) ->
             state = merge_objects state, value
         state
 
+      merge_objects = (target, source) ->
+        for k, v of source
+          target_value = target[k]
+          if Array.isArray target_value
+            target_value.push v...
+          else if typeof target_value is 'object'
+            merge_objects target_value, v
+          else
+            target[k] = v
+        target
+
     customElements.define(component_name, Component, extends: base_html_element)
-
-
-merge_objects = (target, source) ->
-  for k, v of source
-    target_value = target[k]
-    if Array.isArray target_value
-      target_value.push v...
-    else if typeof target_value is 'object'
-      merge_objects target_value, v
-    else
-      target[k] = v
-  target
 
 window.reactor = reactor = {}
 

@@ -1,9 +1,9 @@
 {% load reactor %}
-<div is="x-todo-item" id="{{ this.id }}">
+<div {{ header }}>
   <li class="
-      {{ this.item.completed|then:'completed' }}
-      {{ this.editing|then:'editing' }}
-      {{ this.is_visible|ifnot:'hidden' }}
+      {{ item.completed|then:'completed' }}
+      {{ editing|then:'editing' }}
+      {{ is_visible|ifnot:'hidden' }}
     "
   >
     <div class="view">
@@ -11,19 +11,19 @@
         class="toggle"
         type="checkbox"
         name="completed"
-        {{ this.item.completed|then:'checked' }}
+        {{ item.completed|then:'checked' }}
         @change="completed"
       >
-      <label @click="toggle_editing">{{ this.item.text }}</label>
+      <label @click="toggle_editing">{{ item.text }}</label>
       <button @click="destroy" class="destroy"></button>
     </div>
     <input
       class="edit"
       name="text"
-      value="{{ this.item.text }}"
+      value="{{ item.text }}"
       @blur="save"
       @keypress.enter="save"
-      {{ this.editing|then:'reactor-focus' }}
+      {{ editing|then:'reactor-focus' }}
     >
   </li>
 </div>
