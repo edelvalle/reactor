@@ -333,9 +333,11 @@ merge_objects = (target, source) ->
 window.reactor = reactor = {}
 
 reactor.send = (element, name, args) ->
-  form = element.closest('form')
   component = element.closest('[is]')
-  component?.dispatch(name, form, args)
+  form = element.closest('form')
+  if component?
+    form = if component.contains(form) then form else null
+    component.dispatch(name, form, args)
 
 _timeouts = {}
 
