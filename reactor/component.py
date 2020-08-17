@@ -250,10 +250,7 @@ class AuthComponent(Component, public=False):
             # Listen to user logout and refresh
             return True
         else:
-            self.send_redirect_to_login()
-
-    def send_redirect_to_login(self):
-        self.send_redirect(settings.LOGIN_URL)
+            self.send_destroy()
 
     @cached_property
     def user(self):
@@ -265,7 +262,7 @@ class StaffComponent(AuthComponent, public=False):
         if super().mount() and self.user.is_staff:
             return True
         else:
-            self.send_redirect(settings.LOGIN_URL)
+            self.send_destroy()
 
 
 def compress_diff(diff, diff_item):
