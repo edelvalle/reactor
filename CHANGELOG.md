@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.1.0b0 - Allow the serializer to handle numpy.int types.
+
+## Added
+
+- Now the JSONEncoder used can handle all the int types of numpy.
+
 ## 2.1.0b0 - Templates simplification and performance improvements
 
 ## Changed
