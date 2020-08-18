@@ -38,6 +38,10 @@ class Encoder(DjangoJSONEncoder):
         else:
             number = (
                 n.ndarray,
+                n.int,
+                n.int16,
+                n.int32,
+                n.int64,
                 n.float,
                 n.float16,
                 n.float32,
