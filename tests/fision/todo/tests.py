@@ -1,10 +1,12 @@
-import json
-from pytest import mark
-
 from django.test import TestCase, Client
+from channels.testing import ChannelsLiveServerTestCase
 
-from channels.db import database_sync_to_async as db
-from reactor.tests import reactor
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.firefox.webdriver import WebDriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
 
 from .models import Item
 
@@ -23,100 +25,176 @@ class TestNormalRendering(TestCase):
         self.assertContains(response, 'Second task')
 
 
-@mark.asyncio
-@mark.django_db(transaction=True)
-async def test_live_components():
-    client = Client()
-    assert await db(Item.objects.count)() == 0
+class Browser:
+    def __init__(self, live_server_url):
+        profile = Options()
+        profile.set_preference('intl.accept_languages', 'en-us')
+        profile.set_preference("dom.disable_beforeunload", True)
+        self._x = WebDriver(options=profile)
+        self._x.set_window_position(0, 0)
+        self._x.set_window_size(1920, 1080)
+        self._live_server_url = live_server_url
 
-    html_response = await db(client.get)('/')
-    assert html_response.status_code == 200
+    def quit(self):
+        self._x.quit()
 
-    async with reactor() as comm:
+    def get(self, url) -> 'Browser':
+        if url.startswith('/'):
+            url = self._live_server_url + url
+        self._x.get(url)
+        return self
 
-        x_list = comm.add_component(
-            'x-todo-list',
-            {'id': 'someid', 'showing': 'all'}
+    def click_link(self, text: str) -> 'Browser':
+        self._x.find_element_by_link_text(text).click()
+        return self
+
+    def click(self, what: str) -> 'Browser':
+        if isinstance(what, str):
+            what = self.select(what)
+        what.click()
+        return self
+
+    def select(self, css_selector) -> WebElement:
+        return self.wait_for(css_selector)
+
+    def select_many(self, css_selector) -> [WebDriver]:
+        return self.wait_for(
+            lambda x: x.find_elements_by_css_selector(css_selector)
         )
-        x_todo_counter = comm.add_component(
-            'x-todo-counter',
-            {'id': 'someid-counter'}
+
+    def wait_for(self, predicate, timeout=1, poll_frequency=0.1):
+        if isinstance(predicate, str):
+            _predicate = lambda x: x.find_element_by_css_selector(predicate) # noqa
+        else:
+            _predicate = predicate
+
+        return WebDriverWait(self._x, timeout, poll_frequency).until(_predicate)
+
+    def hold_until_gone(self, predicate, timeout=1, poll_frequency=0.1):
+        if isinstance(predicate, str):
+            _predicate = lambda x: not x.find_element_by_css_selector(predicate) # noqa
+        else:
+            _predicate = predicate
+
+        return WebDriverWait(self._x, timeout, poll_frequency).until_not(
+            _predicate
         )
-        doc = await comm.send_join(x_list)
-        todo_list = doc('#someid')
-        assert json.loads(todo_list.attr['state']) == comm[x_list].state
 
-        # Add new item
-        doc = await comm.send(x_list, 'add', new_item='First task')
+    def focused(self) -> WebElement:
+        return self._x.switch_to.active_element
 
-        # There was an item crated and rendered
-        assert await db(Item.objects.count)() == 1
-        assert len(doc('[is=x-todo-item]')) == 1
-        todo_item_id = doc('[is=x-todo-item]')[0].get('id')
-        todo_item_label = doc('[is=x-todo-item] label')[0]
-        assert todo_item_label.text == 'First task'
+    def chain(self):
+        return ActionChains(self._x)
 
-        item = await db(Item.objects.first)()
-        assert str(item.id) == todo_item_id
-        assert item.text == 'First task'
 
-        # Click title to edit it
-        assert len(doc('[is=x-todo-item] li.editing')) == 0
-        x_first_item = comm.add_component('x-todo-item', {'id': todo_item_id})
-        doc = await comm.send(x_first_item, 'toggle_editing')
-        assert len(doc('[is=x-todo-item] li.editing')) == 1
+class SeleniumTests(ChannelsLiveServerTestCase):
 
-        # Edit item with a new text
-        doc = await comm.send(x_first_item, 'save', text='Edited task')
-        assert len(doc('[is=x-todo-item] li.editing')) == 0, 'Not in read mode'
-        todo_item_label = doc('[is=x-todo-item] label')[0]
-        assert todo_item_label.text == 'Edited task'
-        await db(item.refresh_from_db)()
-        assert item.text == 'Edited task'
+    def setUp(self):
+        super().setUpClass()
+        self.x = Browser(self.live_server_url)
 
-        # Check counter has 1 item left
-        doc = comm[x_todo_counter].doc
-        assert doc('strong')[0].text == '1'
+    def tearDown(self):
+        self.x.quit()
+        super().tearDown()
 
-        # Mark item as completed
-        assert len(doc('[is=x-todo-item] li.completed')) == 0
-        doc = await comm.send(x_first_item, 'completed', completed=True)
+    def test_click(self):
+        # Navigate to todo app
+        new_item_input = (
+            self.x
+            .get('/')
+            .click_link('todo view')
+            .focused()
+        )
 
-        # Item is completed
-        assert len(doc('[is=x-todo-item] li.completed')) == 1
+        # Add first task
+        new_item_input.send_keys(f'HI{Keys.ENTER}')
+        assert not new_item_input.text
+        assert self.x.select('[is=x-todo-item]').text == 'HI'
+        counter = self.x.select('[is=x-todo-counter]')
+        assert counter.text == '1 item left'
 
-        # Counter is rendered as 0
-        doc = comm[x_todo_counter].doc
-        assert doc('strong')[0].text == '0'
+        # Add second task
+        new_item_input.send_keys(f'Second task{Keys.ENTER}')
+        self.x.wait_for(
+            lambda _:
+                not new_item_input.text
+                and len(self.x.select_many('[is=x-todo-item]')) == 2
+        )
+        todo_items = self.x.select_many('[is=x-todo-item]')
+        assert todo_items[0].text == 'HI'
+        assert todo_items[1].text == 'Second task'
+        assert counter.text == '2 items left'
 
-        # Switch to "only active tasks" filtering
-        doc = await comm.send(x_list, 'show', showing='active')
-        assert len(doc('[is=x-todo-item] li.hidden')) == 1
+        # Mark second task as done
+        second_task = todo_items[1]
+        second_task.select('[name=completed]').click()
+        self.x.wait_for(
+            lambda _: second_task.select('li').has_class('completed')
+        )
+        assert counter.text == '1 item left'
 
-        # Switch to "only done tasks" filtering
-        doc = await comm.send(x_list, 'show', showing='completed')
-        assert len(doc('[is=x-todo-item]')) == 1
-        assert len(doc('[is=x-todo-item] li.hidden')) == 0
+        # Show active items
+        self.x.click_link('Active')
+        self.x.wait_for(lambda _: second_task['li'].has_class('hidden'))
+        first_task = todo_items[0]
+        assert not first_task['li'].has_class('hidden')
 
-        # Switch to "all tasks" filtering
-        doc = await comm.send(x_list, 'show', showing='all')
-        assert len(doc('[is=x-todo-item]')) == 1
-        assert len(doc('[is=x-todo-item] li.hidden')) == 0
+        # Show completed items
+        self.x.click_link('Completed')
+        self.x.wait_for(lambda _: first_task['li'].has_class('hidden'))
+        assert not second_task['li'].has_class('hidden')
 
-        # Add another task
-        doc = await comm.send(x_list, 'add', new_item='Another task')
-        assert len(doc('[is=x-todo-item]')) == 2
-        assert len(doc('[is=x-todo-item] li.completed')) == 1
+        # Show all
+        self.x.click_link('All')
+        self.x.wait_for(
+            lambda _:
+                not first_task['li'].has_class('hidden')
+                and not second_task['li'].has_class('hidden')
+        )
 
-        # Cache miss in the counter so re-render
-        doc = comm[x_todo_counter].doc
-        assert doc('strong')[0].text == '1'
+        # Clear completed tasks
+        self.x.select('button.clear-completed').click()
+        self.x.wait_for(
+            lambda _: len(self.x.select_many('[is=x-todo-item]')) == 1
+        )
+        assert self.x.select_many('[is=x-todo-item]') == [first_task]
 
-        # Remove completed tasks removes just one task
-        doc = await comm.send(x_list, 'clear_completed')
-        assert len(doc('[is=x-todo-item]')) == 1
-        assert len(doc('[is=x-todo-item].completed')) == 0
+        # Edit the first task.
+        first_task['label'].click()
+        first_task_input = self.x.wait_for(lambda _: first_task['input.edit'])
+        assert first_task_input == self.x.focused()
+        first_task_input.send_keys(
+            f'{Keys.BACKSPACE}{Keys.BACKSPACE}First item{Keys.ENTER}'
+        )
 
-        # Cache miss in the counter so re-render
-        doc = comm[x_todo_counter].doc
-        assert doc('strong')[0].text == '1'
+        self.x.hold_until_gone(lambda _: first_task['.editing'])
+        (
+            self.x.chain()
+            .move_to_element(first_task['label'])
+            .click(first_task['.destroy'])
+            .perform()
+        )
+        self.x.hold_until_gone('[is=x-todo-item]')
+
+
+def classes(element: WebElement) -> set:
+    return set(element.get_attribute('class').split())
+
+
+def has_class(element: WebElement, class_name) -> WebElement:
+    return class_name in element.classes
+
+
+def select(element: WebElement, css_selector: str) -> WebElement:
+    return element.find_element_by_css_selector(css_selector)
+
+
+def select_many(element: WebElement, css_selector: str) -> WebElement:
+    return element.find_elements_by_css_selector(css_selector)
+
+
+WebElement.classes = property(classes)
+WebElement.has_class = has_class
+WebElement.select = select
+WebElement.__getitem__ = select
+WebElement.select_many = select_many

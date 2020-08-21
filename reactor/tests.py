@@ -65,13 +65,14 @@ class ReactorCommunicator(WebsocketCommunicator):
         await self.loop_over_messages()
         return component.doc
 
-    async def send(self, _id, _name, **state):
+    async def send(self, _id, _name, **args):
         assert _id in self._components
         await self.send_json_to({
             'command': 'user_event',
             'payload': {
+                'id': _id,
                 'name': _name,
-                'state': dict(state, id=_id)
+                'args': args,
             }
         })
         await self.loop_over_messages(reset_timeout=True)

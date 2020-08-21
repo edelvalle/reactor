@@ -54,7 +54,7 @@ class ReactorChannel
       tag_name: tag_name
       state: state
 
-  send_leave: (id) -> 
+  send_leave: (id) ->
     console.log '>>> LEAVE', id
     @send 'leave', id: id
 
@@ -239,7 +239,7 @@ declare_components = (component_types) ->
               transpile(to_el)
 
               should_patch = (
-                from_el is document.activeElement and 
+                from_el is document.activeElement and
                 not from_el.hasAttribute(':override')
               )
               if should_patch

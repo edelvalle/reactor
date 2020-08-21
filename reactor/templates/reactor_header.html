@@ -1,7 +1,10 @@
-{% load static reactor %}
-<link rel="stylesheet" href="{% static "reactor/reactor.css" %}">
-<script defer src="{% static "reactor/morphdom.min.js" %}"></script>
+{% load static %}
+<style>
+  .reactor-disconnected {opacity: 0.8; cursor: wait;}
+  .reactor-disconnected * {opacity: 0.8; pointer-events: none;}
+</style>
 {% if include_tlinks %}
   <script defer src="{% static "reactor/turbolinks.min.js" %}"></script>
 {% endif %}
+<script defer src="{% static "reactor/morphdom.min.js" %}"></script>
 <script defer src="{% static "reactor/reactor.js" %}"></script>

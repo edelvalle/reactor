@@ -106,7 +106,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def remove(self, event):
         log.debug(f"<<< REMOVE {event['id']}")
-        self.receive_leave(**event)
+        self.receive_leave(event['id'])
         self.send_json(dict(event, type='remove'))
 
     def redirect(self, event):
