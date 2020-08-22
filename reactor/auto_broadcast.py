@@ -37,34 +37,48 @@ if MODEL or MODEL_PK or RELATED:
 
 
 def broadcast_related(sender, instance, deleted=False, created=False):
-    for field in sender._meta.get_fields():
-        if isinstance(field, models.ForeignKey):
-            fk_id = getattr(instance, field.attname)
-            if fk_id is not None:
-                fk_model_name = field.related_model._meta.model_name
-                fk_attr_name = field.related_query_name()
-                group_name = f'{fk_model_name}.{fk_id}.{fk_attr_name}'
-                broadcast(group_name)
-                if created:
-                    broadcast(f'{group_name}.new')
-                if deleted:
-                    broadcast(f'{group_name}.del')
-        elif M2M and isinstance(field, models.ManyToManyField):
-            fk_attr_name = field.related_query_name()
-            if fk_attr_name != '+':
-                fk_ids = getattr(instance, field.attname).values_list(
-                    'id', flat=True
-                )
-                fk_model_name = field.related_model._meta.model_name
-                group_names = [
-                    f'{fk_model_name}.{fk_id}.{fk_attr_name}'
-                    for fk_id in fk_ids
-                ]
-                broadcast(*group_names)
-                if created:
-                    broadcast(*[f'{gn}.new' for gn in group_names])
-                if deleted:
-                    broadcast(*[f'{gn}.del' for gn in group_names])
+    for field in get_related_fields(sender):
+        if field['is_m2m']:
+            fk_ids = getattr(instance, field['name']).values_list(
+                'id', flat=True
+            )
+        else:
+            fk_ids = filter(None, [getattr(instance, field['name'])])
+
+        if fk_ids:
+            group_names = [
+                f'{field["related_model_name"]}.{fk_id}.{field["related_name"]}'
+                for fk_id in fk_ids
+            ]
+            broadcast(*group_names)
+            if created:
+                broadcast(*[f'{gn}.new' for gn in group_names])
+            if deleted:
+                broadcast(*[f'{gn}.del' for gn in group_names])
+
+
+MODEL_RELATED_FIELDS = {}
+
+
+def get_related_fields(model):
+    related_fields = MODEL_RELATED_FIELDS.get(model)
+    if related_fields is None:
+        fields = []
+        for field in model._meta.get_fields():
+            if isinstance(field, (models.ForeignKey, models.ManyToManyField)):
+                related_name = field.related_query_name()
+                if related_name != '+':
+                    is_m2m = isinstance(field, models.ManyToManyField)
+                    if not is_m2m or M2M and is_m2m:
+                        fields.append({
+                            'is_m2m': is_m2m,
+                            'name': field.attname,
+                            'related_name': related_name,
+                            'related_model_name':
+                                field.related_model._meta.model_name,
+                        })
+        related_fields = MODEL_RELATED_FIELDS[model] = tuple(fields)
+    return related_fields
 
 
 if M2M:
