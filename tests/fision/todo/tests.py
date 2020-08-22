@@ -1,9 +1,9 @@
 from django.test import TestCase, Client
 from channels.testing import ChannelsLiveServerTestCase
 
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.firefox.webdriver import WebDriver
-from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
@@ -27,15 +27,14 @@ class TestNormalRendering(TestCase):
 
 class Browser:
     def __init__(self, live_server_url):
-        profile = Options()
-        profile.set_preference('intl.accept_languages', 'en-us')
-        profile.set_preference("dom.disable_beforeunload", True)
-        self._x = WebDriver(options=profile)
-        self._x.set_window_position(0, 0)
-        self._x.set_window_size(1920, 1080)
+        options = Options()
+        options.binary_location = '/usr/bin/brave'
+        self._x = WebDriver(options=options)
+        self._x.maximize_window()
         self._live_server_url = live_server_url
 
     def quit(self):
+        self._x.close()
         self._x.quit()
 
     def get(self, url) -> 'Browser':
@@ -83,6 +82,15 @@ class Browser:
     def focused(self) -> WebElement:
         return self._x.switch_to.active_element
 
+    def send_ctrl(self, key):
+        (
+            self.chain()
+            .key_down(Keys.CONTROL)
+            .send_keys(key)
+            .key_up(Keys.CONTROL)
+            .perform()
+        )
+
     def chain(self):
         return ActionChains(self._x)
 
@@ -103,7 +111,7 @@ class SeleniumTests(ChannelsLiveServerTestCase):
             self.x
             .get('/')
             .click_link('todo view')
-            .focused()
+            .wait_for('input')
         )
 
         # Add first task
@@ -163,8 +171,9 @@ class SeleniumTests(ChannelsLiveServerTestCase):
         first_task['label'].click()
         first_task_input = self.x.wait_for(lambda _: first_task['input.edit'])
         assert first_task_input == self.x.focused()
+        self.x.send_ctrl('a')
         first_task_input.send_keys(
-            f'{Keys.BACKSPACE}{Keys.BACKSPACE}First item{Keys.ENTER}'
+            f'{Keys.BACKSPACE}First item{Keys.ENTER}'
         )
 
         self.x.hold_until_gone(lambda _: first_task['.editing'])
