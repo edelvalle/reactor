@@ -18,7 +18,7 @@ def dumps(obj, indent=False):
     return orjson.dumps(obj, default=default, option=option).decode()
 
 
-def default(self, o):
+def default(o):
     if isinstance(o, models.Model):
         return o.pk
 
