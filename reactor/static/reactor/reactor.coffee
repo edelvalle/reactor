@@ -236,6 +236,10 @@ declare_components = (component_types) ->
               if from_el.hasAttribute(':once')
                 return false
 
+              if from_el.hasAttribute(':keep')
+                to_el.value = from_el.value
+                to_el.checked = from_el.checked
+
               transpile(to_el)
 
               should_patch = (
