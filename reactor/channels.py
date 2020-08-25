@@ -1,7 +1,6 @@
 import logging
 
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from channels.generic.websocket import JsonWebsocketConsumer
 
 from . import json
