@@ -156,7 +156,8 @@ This component ensures the user is logged in or redirects the user to the login 
 
 ### Special HTMLElement attributes
 
-- `:override`: When an input is being updated and the user has the focus there reactor by default will not update the input field value, use `:override` to do otherwise.
+- `:keep`: Prevent the value of an input from being changed across renders.
+- `:override`: When an input is being updated and the user has the focus there reactor by default will not update the input field value (has if it had `:keep`), use `:override` to do otherwise.
 - `:once`: Reactor will render this element and children once, and never update it again.
 - `:focus`: Sets the focus on this element after an HTML update.
 

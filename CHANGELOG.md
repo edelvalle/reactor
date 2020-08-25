@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.1.3b0 - Use orjson for serialization.
+
+### Added
+
+- :keep directive on an input will preserve the value of the input across renders
+
 ## 2.1.2b0 - Use orjson for serialization.
 
 # Changed
