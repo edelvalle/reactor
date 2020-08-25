@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.1.5b0 - Use orjson for serialization.
+
+### Fixed
+
+- Fix not re-rendering and element when clicked
+
 ## 2.1.3b0 - Use orjson for serialization.
 
 ### Added
