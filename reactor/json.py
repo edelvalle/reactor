@@ -1,54 +1,34 @@
-import simdjson
 from typing import Generator
+import orjson
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 
-parser = simdjson.Parser()
-
-
 def loads(text_data):
-    return parser.parse(text_data)
+    return orjson.loads(text_data)
 
 
-def dumps(obj):
-    return simdjson.dumps(obj, cls=Encoder)
+def dumps(obj, indent=False):
+    option = (
+        orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
+    )
+    if indent:
+        option |= orjson.OPT_INDENT_2
+    return orjson.dumps(obj, default=default, option=option).decode()
 
 
-class Encoder(DjangoJSONEncoder):
+def default(self, o):
+    if isinstance(o, models.Model):
+        return o.pk
 
-    def default(self, o):
-        if isinstance(o, models.Model):
-            return o.pk
+    if isinstance(o, models.QuerySet):
+        return list(o.values_list('pk', flat=True))
 
-        if isinstance(o, models.QuerySet):
-            return list(o.values_list('pk', flat=True))
+    if isinstance(o, (Generator, set)):
+        return list(o)
 
-        if isinstance(o, (Generator, set)):
-            return list(o)
+    if hasattr(o, '__json__'):
+        return o.__json__()
 
-        if hasattr(o, '__json__'):
-            return o.__json__()
-
-        try:
-            import numpy as n
-        except ImportError:
-            pass
-        else:
-            number = (
-                n.ndarray,
-                n.int,
-                n.int16,
-                n.int32,
-                n.int64,
-                n.float,
-                n.float16,
-                n.float32,
-                n.float64,
-                n.float128
-            )
-            if isinstance(o, number):
-                return o.tolist()
-
-        return super().default(o)
+    return DjangoJSONEncoder().default(o)

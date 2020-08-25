@@ -1,10 +1,9 @@
-import json
 from django import template
 from django.template.loader import render_to_string
 
 
+from .. import json
 from ..component import Component
-from ..json import Encoder
 from ..settings import INCLUDE_TURBOLINKS
 
 register = template.Library()
@@ -41,7 +40,7 @@ def concat(value, arg):
 
 @register.filter()
 def tojson(value, indent=None):
-    return json.dumps(value, cls=Encoder, indent=indent)
+    return json.dumps(value, indent=indent)
 
 
 @register.filter

@@ -67,19 +67,13 @@ class ReactorConsumer(JsonWebsocketConsumer):
         getattr(self, f'receive_{name}')(**payload)
 
     def receive_join(self, tag_name, state):
-        if settings.DEBUG:
-            log.debug(f'>>> JOIN {tag_name} {state.as_dict()}')
-        else:
-            log.debug(f'>>> JOIN {tag_name} {state}')
+        log.debug(f'>>> JOIN {tag_name} {state}')
         component = self.root_component.get_or_create(tag_name, **state)
         html_diff = component._render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
     def receive_user_event(self, id, name, args):
-        if settings.DEBUG:
-            log.debug(f'>>> USER_EVENT {name} {args.as_dict()}')
-        else:
-            log.debug(f'>>> USER_EVENT {name} {args}')
+        log.debug(f'>>> USER_EVENT {name} {args}')
         html_diff = self.root_component.dispatch_user_event(id, name, args)
         self.render({'id': id, 'html_diff': html_diff})
 
@@ -95,7 +89,11 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def send_component(self, event):
         log.debug(f'>>> DISPATCH {event}')
-        self.receive_user_event(event['name'], event['state'])
+        self.receive_user_event(
+            event['state']['id'],
+            event['name'],
+            event['state']
+        )
 
     # Broadcasters
 

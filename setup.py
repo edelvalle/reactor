@@ -22,7 +22,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'channels>=2.2.0,<2.5',
-        'pysimdjson>=2.5.1,<2.6',
+        'orjson>=3,<4',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
