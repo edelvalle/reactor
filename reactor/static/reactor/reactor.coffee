@@ -244,6 +244,7 @@ declare_components = (component_types) ->
 
               should_patch = (
                 from_el is document.activeElement and
+                from_el.tagName in ['INPUT', 'SELECT', 'TEXTAREA'] and
                 not from_el.hasAttribute(':override')
               )
               if should_patch
