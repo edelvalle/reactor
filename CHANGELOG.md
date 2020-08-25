@@ -1,6 +1,13 @@
 # Change Log
 
-## 2.1.0b0 - Allow the serializer to handle numpy.int types.
+## 2.1.2b0 - Use orjson for serialization.
+
+# Changed
+
+- Started using orjson for serialization of JSON
+- Add better testing
+
+## 2.1.1b0 - Allow the serializer to handle numpy.int types
 
 ## Added
 
