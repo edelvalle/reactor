@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.1.6b0 - Use orjson for serialization.
+
+### Added
+
+- Added a `json.Encoder` for backwards compatibility
+
 ## 2.1.5b0 - Use orjson for serialization.
 
 ### Fixed
