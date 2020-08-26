@@ -9,15 +9,6 @@ def loads(text_data):
     return orjson.loads(text_data)
 
 
-def dumps(obj, indent=False):
-    option = (
-        orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
-    )
-    if indent:
-        option |= orjson.OPT_INDENT_2
-    return orjson.dumps(obj, default=default, option=option).decode()
-
-
 def default(o):
     if isinstance(o, models.Model):
         return o.pk
@@ -34,9 +25,21 @@ def default(o):
     return DjangoJSONEncoder().default(o)
 
 
+def dumps(obj, indent=False, default=default):
+    option = (
+        orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
+    )
+    if indent:
+        option |= orjson.OPT_INDENT_2
+    return orjson.dumps(obj, default=default, option=option).decode()
+
+
 class Encoder:
     def __init__(self, *args, **kwargs):
         pass
 
+    def default(self, obj):
+        return default(obj)
+
     def encode(self, obj):
-        return dumps(obj)
+        return dumps(obj, default=self.default)
