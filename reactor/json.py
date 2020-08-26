@@ -32,3 +32,11 @@ def default(o):
         return o.__json__()
 
     return DjangoJSONEncoder().default(o)
+
+
+class Encoder:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def encode(self, obj):
+        return dumps(obj)
