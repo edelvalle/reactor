@@ -1,0 +1,14 @@
+site_name: Django Reactor
+site_description: a LiveView library for Django
+
+theme:
+    name: 'material'
+
+repo_name: edelvalle/reactor
+repo_url: https://github.com/edelvalle/reactor
+edit_uri: ""
+
+nav:
+    - Introduction: 'index.md'
+
+

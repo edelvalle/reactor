@@ -7,3 +7,4 @@ reactor/static/reactor.js*
 node_modules/*
 *.sqlite3
 .coverage
+site/
