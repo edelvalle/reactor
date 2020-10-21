@@ -134,7 +134,7 @@ transpile = (el) ->
         if method_name is ''
           code = ''
         else
-          code = "reactor.send(this, '#{method_name}', #{method_args});"
+          code = "reactor.send(event.target, '#{method_name}', #{method_args});"
 
         while modifiers.length
           modifier = modifiers.pop()
@@ -296,7 +296,15 @@ declare_components = (component_types) ->
           if el.closest('[is]') is this
             value = (
               if el.type.toLowerCase() is 'checkbox'
-                el.checked
+                if el.checked
+                  el.value or true
+                else
+                  null
+              else if el.type.toLowerCase() is 'radio'
+                if el.checked
+                  el.value or true
+                else
+                  null
               else if el.type.toLowerCase() is 'select-multiple'
                 (option.value for option in el.selectedOptions)
               else if el.hasAttribute 'contenteditable'
@@ -307,6 +315,8 @@ declare_components = (component_types) ->
               else
                 el.value
             )
+            if value is null
+              continue
             for part in el.getAttribute('name').split('.').reverse()
               obj = {}
               if part.endsWith('[]')
