@@ -14,8 +14,8 @@ build:
 
 install:
 	pip install --upgrade pip
-	python setup.py develop
-	pip install flake8 pytest-django pytest-asyncio pyquery rjsmin selenium
+	pip install poetry
+	poetry install
 
 test:
 	flake8 --max-line-length=80 reactor
