@@ -297,7 +297,7 @@ declare_components = (component_types) ->
             value = (
               if el.type.toLowerCase() is 'checkbox'
                 if el.checked
-                  el.value or true
+                  el.getAttribute('value') or true
                 else
                   null
               else if el.type.toLowerCase() is 'radio'
