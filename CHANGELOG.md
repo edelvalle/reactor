@@ -1,5 +1,14 @@
 # Change Log
 
+## 2.2.0b - Improve serialization of forms
+
+### Changed
+
+- Building system now uses poetry
+- Compression of assets is with uglify-es
+- When serializing `input[type=radio]` it will read the value on the input and send it
+- When serializing `input[type=checkbox]` it will read the value of that input and add it to the list, or return `false` or `true` if it is checked
+
 ## 2.1.6b0 - Use orjson for serialization.
 
 ### Added
@@ -91,8 +100,8 @@ urlpatterns = [
 
 websocket_urlpatterns = [
     # Temporal, to keep compatibility with old client while deploying
-    path('reactor', ReactorConsumer), 
-    
+    path('reactor', ReactorConsumer),
+
     # Final URL, remove the previous one in the next deployment and use this one instead
     path('__reactor__', ReactorConsumer),
 ]
