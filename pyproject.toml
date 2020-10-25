@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-reactor"
-version = "2.2.0b"
+version = "2.2.1b"
 description = "Brings LiveView from Phoenix framework into Django"
 authors = ["Eddy Ernesto del Valle Pino <eddy@edelvalle.me>"]
 license = "MIT"
