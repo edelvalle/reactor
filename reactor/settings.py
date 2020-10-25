@@ -8,6 +8,7 @@ def get(name, default=None):
 LOGIN_URL = settings.LOGIN_URL
 INCLUDE_TURBOLINKS = get('INCLUDE_TURBOLINKS', False)
 USE_HTML_DIFF = get('USE_HTML_DIFF', True)
+USE_HMIN = get('USE_HMIN', True)
 AUTO_BROADCAST = get('AUTO_BROADCAST', False)
 
 

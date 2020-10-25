@@ -2,6 +2,12 @@ import difflib
 from uuid import uuid4
 from functools import reduce
 
+try:
+    from hmin.base import html_minify
+except ImportError:
+    def html_minify(html):
+        return html
+
 from django.shortcuts import resolve_url
 from django.template.loader import get_template, select_template
 from django.utils.html import escape
@@ -187,8 +193,7 @@ class Component:
         )
 
     def _render_diff(self):
-        html = self._render()
-        html = html.splitlines()
+        html = self._render().split()
         if html and self._last_sent_html != html:
             if settings.USE_HTML_DIFF:
                 diff = []
@@ -222,6 +227,10 @@ class Component:
             )
         else:
             html = self._get_template().render(self._get_context()).strip()
+
+        if settings.USE_HMIN:
+            html = html_minify(html)
+
         return mark_safe(html)
 
     def _get_template(self):

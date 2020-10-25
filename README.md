@@ -18,9 +18,9 @@ Install reactor:
 pip install django-reactor
 ```
 
-Reacto makes use of `django-channels`, by default this one uses an InMemory channel layer which is not capable of a real broadcasting, so you might wanna use the Redis one, take a look here: [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html) 
+Reacto makes use of `django-channels`, by default this one uses an InMemory channel layer which is not capable of a real broadcasting, so you might wanna use the Redis one, take a look here: [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html)
 
-Add `reactor` and `channels` to your `INSTALLED_APPS` before the Django applications so channels can override the `runserver` command. 
+Add `reactor` and `channels` to your `INSTALLED_APPS` before the Django applications so channels can override the `runserver` command.
 
 ```python
 INSTALLED_APPS = [
@@ -109,6 +109,7 @@ AUTO_BROADCAST = {
 
 - `REACTOR_INCLUDE_TURBOLINKS` (default: `False`), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
 - `REACTOR_USE_HTML_DIFF` (default: `True`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
+- `REACTOR_USE_HMIN` (default: `False`), when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
 
 ## Back-end APIs
 
@@ -127,7 +128,7 @@ AUTO_BROADCAST = {
 - `Component`: This is the base component you should extend.
 - `AuthComponent`: Extends `Component` and ensures the user is logged in.
 - `broadcast(*names)`: Broadcasts the given names too all the system.
-- `on_commit(function)(*args, **kwargs)`: Calls `function` with the given arguments after database commit. 
+- `on_commit(function)(*args, **kwargs)`: Calls `function` with the given arguments after database commit.
 
 #### Component API
 
@@ -174,12 +175,12 @@ The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]
 - `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
 - `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html):
   - `prevent`: calls `event.preventDefault();`
-  - `stop`: calls (`event.stopPropagation();`), 
+  - `stop`: calls (`event.stopPropagation();`),
   - `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press.
   - `inlinejs`: allows you to write your custom JavaScript in the event handler.
-  - `debounce`: the bounces the event, it needs a name and the delay in milliseconds. Example: `@keypress.100.search.debounce='message'`. 
+  - `debounce`: the bounces the event, it needs a name and the delay in milliseconds. Example: `@keypress.100.search.debounce='message'`.
 - `event_name`: is the name of the message to be send to this component
-- The arguments can be completely omitted, or specified as a dictionary. 
+- The arguments can be completely omitted, or specified as a dictionary.
 
 When the arguments are omitted reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
 
@@ -274,7 +275,7 @@ class XCounter(Component):
     amount = None
 
     # reference the template from above
-    template_name = 'x-counter.html' 
+    template_name = 'x-counter.html'
 
     # A component is instantiated during normal rendering and when the component
     # connects from the front-end. Then  __init__ is called passing `context` of
@@ -283,7 +284,7 @@ class XCounter(Component):
     # `id` is passed if any is provided, otherwise a `uuid4` is  generated on
     # the fly.
 
-    # This method is called after __init__ passing the initial state of the 
+    # This method is called after __init__ passing the initial state of the
     # Component, this method is responsible taking the state of the component
     # and construct or reconstruct the component. Sometimes loading things from
     # the database like tests of this project.
@@ -330,7 +331,7 @@ And the index template being:
     {% component 'x-counter' %}
 
     <!-- or passing an initial state -->
-    {% component 'x-counter' amount=100 %}    
+    {% component 'x-counter' amount=100 %}
 
   </body>
 </html>

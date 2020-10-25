@@ -228,7 +228,7 @@ declare_components = (component_types) ->
             html.push(...@_last_received_html[cursor...cursor + diff])
             cursor += diff
         @_last_received_html = html
-        html = html.join '\n'
+        html = html.join ' '
         window.requestAnimationFrame =>
           morphdom this, html,
             onBeforeElUpdated: (from_el, to_el) =>

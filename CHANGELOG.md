@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.2.1b - Add support for HTML minification using django-hmin
+
+### Added
+
+- New settings `REACTOR_USE_HMIN` (default: `False`) if enable and django-hmin is installed components will be rendered in minified HTML to save bandwidth.
+
 ## 2.2.0b - Improve serialization of forms
 
 ### Changed
