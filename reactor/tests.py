@@ -102,7 +102,7 @@ class ReactorCommunicator(WebsocketCommunicator):
 
 
 @asynccontextmanager
-async def reactor(consumer=ReactorConsumer, path='/reactor', user=None):
+async def reactor(consumer=ReactorConsumer, path='/__reactor__', user=None):
     comm = ReactorCommunicator(application=consumer, path=path, user=user)
     connected, subprotocol = await comm.connect()
     assert connected
@@ -138,9 +138,7 @@ class Component:
                 html.extend(self.last_received_html[cursor:cursor + diff])
                 cursor += diff
         self.last_received_html = html
-        from pprint import pprint
-        pprint(html)
-        self.doc = q('\n'.join(self.last_received_html))
+        self.doc = q(' '.join(self.last_received_html))
 
         state = self.doc.attr['state']
         if state:

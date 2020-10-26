@@ -263,7 +263,7 @@ class AuthComponent(Component, public=False):
 
     @cached_property
     def user(self):
-        return self._context['user']
+        return self._context.get('user', AnonymousUser())
 
 
 class StaffComponent(AuthComponent, public=False):
