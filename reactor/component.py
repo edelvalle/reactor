@@ -8,6 +8,7 @@ except ImportError:
     def html_minify(html):
         return html
 
+from django.contrib.auth.models import AnonymousUser
 from django.shortcuts import resolve_url
 from django.template.loader import get_template, select_template
 from django.utils.html import escape
