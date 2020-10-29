@@ -92,7 +92,7 @@ reactor_channel.on 'close', ->
     el.classList.add('reactor-disconnected')
 
 
-reactor_channel.on 'message', ({type, id, html_diff, url, component_types}) ->
+reactor_channel.on 'message', ({type, title, id, html_diff, url, component_types}) ->
   console.log '<<<', type.toUpperCase(), id or url or component_types
   if type is 'components'
     declare_components(component_types)
@@ -100,6 +100,8 @@ reactor_channel.on 'message', ({type, id, html_diff, url, component_types}) ->
     window.location.assign url
   else if type is 'push_state'
     reactor.push_state url
+  else if type is 'replace_state'
+    history.replaceState {}, (title or document.title), url
   else
     el = document.getElementById(id)
     if el?

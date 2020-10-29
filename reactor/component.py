@@ -181,6 +181,14 @@ class Component:
         else:
             self._redirected_to = url
 
+    def send_replace_state(self, url, _title=None, *args, **kwargs):
+        url = resolve_url(url, *args, **kwargs)
+        if self._channel_name:
+            send_to_channel(
+                self._channel_name, 'replace_state',
+                title=_title, url=url
+            )
+
     def send_parent(self, _name, **kwargs):
         if self._parent_id:
             self.send(_name, id=self._parent_id, **kwargs)

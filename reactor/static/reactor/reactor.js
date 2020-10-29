@@ -141,7 +141,7 @@
     return results;
   });
 
-  reactor_channel.on('message', function({type, id, html_diff, url, component_types}) {
+  reactor_channel.on('message', function({type, title, id, html_diff, url, component_types}) {
     var el;
     console.log('<<<', type.toUpperCase(), id || url || component_types);
     if (type === 'components') {
@@ -150,6 +150,8 @@
       return window.location.assign(url);
     } else if (type === 'push_state') {
       return reactor.push_state(url);
+    } else if (type === 'replace_state') {
+      return history.replaceState({}, title || document.title, url);
     } else {
       el = document.getElementById(id);
       if (el != null) {

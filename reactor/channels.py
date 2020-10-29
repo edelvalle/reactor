@@ -114,6 +114,10 @@ class ReactorConsumer(JsonWebsocketConsumer):
         log.debug(f"<<< PUSH-STATE {event['url']}")
         self.send_json(dict(event, type='push_state'))
 
+    def replace_state(self, event):
+        log.debug(f"<<< REPLACE-STATE {event['url'], event['title']}")
+        self.send_json(dict(event, type='replace_state'))
+
     @classmethod
     def decode_json(cls, text_data):
         return json.loads(text_data)
