@@ -50,6 +50,7 @@ def broadcast_related(sender, instance, deleted=False, created=False):
                 f'{field["related_model_name"]}.{fk_id}.{field["related_name"]}'
                 for fk_id in fk_ids
             ]
+            group_names = [g.replace('_', '') for g in group_names]
             broadcast(*group_names)
             if created:
                 broadcast(*[f'{gn}.new' for gn in group_names])
@@ -73,7 +74,7 @@ def get_related_fields(model):
                         fields.append({
                             'is_m2m': is_m2m,
                             'name': field.attname,
-                            'related_name': related_name,
+                            'related_name': related_name.replace('_', ''),
                             'related_model_name':
                                 field.related_model._meta.model_name,
                         })
@@ -89,14 +90,17 @@ if M2M:
         if action.startswith('post_') and instance.pk:
             model_name = model._meta.model_name
             attr_name = get_name_of(sender, model)
-            updates = [f'{model_name}.{pk}.{attr_name}' for pk in pk_set or []]
+            updates = [
+                f'{model_name}.{pk}.{attr_name}'.replace('_', '')
+                for pk in pk_set or []
+            ]
             broadcast(*updates)
             broadcast(*[f'{u}.{instance.pk}' for u in updates])
 
             model = type(instance)
             model_name = model._meta.model_name
             attr_name = get_name_of(sender, model)
-            update = f'{model_name}.{instance.pk}.{attr_name}'
+            update = f'{model_name}.{instance.pk}.{attr_name}'.replace('_', '')
             broadcast(update)
             broadcast(*[f'{update}.{pk}' for pk in pk_set or []])
 
