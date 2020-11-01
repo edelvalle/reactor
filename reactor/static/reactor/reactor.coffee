@@ -300,8 +300,10 @@ declare_components = (component_types) ->
               if el.type.toLowerCase() is 'checkbox'
                 if el.checked
                   el.getAttribute('value') or true
-                else
+                else if el.getAttribute('name').endsWith('[]')
                   null
+                else
+                  false
               else if el.type.toLowerCase() is 'radio'
                 if el.checked
                   el.value or true

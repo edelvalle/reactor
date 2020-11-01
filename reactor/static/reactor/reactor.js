@@ -413,7 +413,7 @@
             for (i = 0, len = ref.length; i < len; i++) {
               el = ref[i];
               if (el.closest('[is]') === this) {
-                value = (el.type.toLowerCase() === 'checkbox' ? el.checked ? el.getAttribute('value') || true : null : el.type.toLowerCase() === 'radio' ? el.checked ? el.value || true : null : el.type.toLowerCase() === 'select-multiple' ? (function() {
+                value = (el.type.toLowerCase() === 'checkbox' ? el.checked ? el.getAttribute('value') || true : el.getAttribute('name').endsWith('[]') ? null : false : el.type.toLowerCase() === 'radio' ? el.checked ? el.value || true : null : el.type.toLowerCase() === 'select-multiple' ? (function() {
                   var j, len1, ref1, results1;
                   ref1 = el.selectedOptions;
                   results1 = [];
