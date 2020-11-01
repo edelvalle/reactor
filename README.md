@@ -34,37 +34,27 @@ INSTALLED_APPS = [
 ASGI_APPLICATION = 'project_name.asgi.application'
 ```
 
-Register the reactor consumer at the url `/__reactor__` in your `project_name/urls.py` as in:
-
-```python
-from django.contrib import admin
-from django.urls import path
-from reactor.channels import ReactorConsumer
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-]
-
-websocket_urlpatterns = [
-    path('__reactor__', ReactorConsumer),
-]
-```
-
 and modify your `project_name/asgi.py` file like:
 
 ```python
 import os
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'project_name.settings')
 
-from reactor.asgi import get_asgi_application  # noqa
+import django
+django.setup()
 
-application = get_asgi_application()
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from django.core.asgi import get_asgi_application
+from reactor.urls import websocket_urlpatterns
+
+application = ProtocolTypeRouter({
+    'http': get_asgi_application(),
+    'websocket': AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
+})
 ```
 
-Note 1: The reactor `ASGIHandler` will be load the URLs from your `project_name/urls.py` and the HTTP ones and the WebSocket ones, so if you need to add more WebSocket handlers feel free to add them to `websocket_urlpatterns`.
-
-Note 1: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
+Note: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
 
 In the templates where you want to use reactive components you have to load the reactor static files. So do something like this so the right JavaScript gets loaded:
 

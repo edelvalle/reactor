@@ -2,6 +2,7 @@
 import orjson
 from django.urls import path
 from django.http.response import HttpResponse
+from .channels import ReactorConsumer
 from .component import Component
 
 
@@ -27,4 +28,8 @@ def _get_component(request, component) -> Component:
 urlpatterns = [
     path('__reactor__/<component>', build_component),
     path('__reactor__/<component>/<event>', user_event),
+]
+
+websocket_urlpatterns = [
+    path('__reactor__', ReactorConsumer.as_asgi())
 ]

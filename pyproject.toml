@@ -12,7 +12,7 @@ include = ["reactor/static/reactor/reactor.js"]
 
 [tool.poetry.dependencies]
 python = ">=3.6,<4"
-channels = ">=2.2.0,<2.5"
+channels = ">=3.0.0,<3.1"
 orjson = ">=3,<4"
 splinter = {extras = ["django"], version = "^0.14.0"}
 
