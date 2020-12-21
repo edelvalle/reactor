@@ -1,6 +1,10 @@
 from typing import Generator
 import orjson
-import pydantic
+
+try:
+    from pydantic import BaseModel
+except ImportError:
+    BaseModel = None
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -20,7 +24,7 @@ def default(o):
     if isinstance(o, (Generator, set)):
         return list(o)
 
-    if isinstance(o, pydantic.BaseModel):
+    if BaseModel and isinstance(o, BaseModel):
         return o.dict()
 
     if hasattr(o, '__json__'):
