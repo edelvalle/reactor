@@ -1,4 +1,5 @@
 from django import template
+from django.template.base import Token, Parser, Node
 from django.template.loader import render_to_string
 
 
@@ -65,3 +66,34 @@ def ifnot(value, false_result):
         return false_result
     else:
         return ''
+
+
+@register.tag()
+def cond(parser: Parser, token: Token):
+    dict_expression = token.contents[len('cond '):]
+    return CondNode(dict_expression)
+
+
+@register.tag(name='class')
+def class_cond(parser: Parser, token: Token):
+    dict_expression = token.contents[len('class '):]
+    return ClassNode(dict_expression)
+
+
+class CondNode(Node):
+    def __init__(self, dict_expression):
+        self.dict_expression = dict_expression
+
+    def render(self, context):
+        terms = eval(self.dict_expression, context.flatten())
+        return ' '.join(
+            term
+            for term, ok in terms.items()
+            if ok
+        )
+
+
+class ClassNode(CondNode):
+    def render(self, *args, **kwargs):
+        text = super().render(*args, **kwargs)
+        return f'class="{text}"'

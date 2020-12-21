@@ -1,5 +1,6 @@
 from typing import Generator
 import orjson
+import pydantic
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -18,6 +19,9 @@ def default(o):
 
     if isinstance(o, (Generator, set)):
         return list(o)
+
+    if isinstance(o, pydantic.BaseModel):
+        return o.dict()
 
     if hasattr(o, '__json__'):
         return o.__json__()
