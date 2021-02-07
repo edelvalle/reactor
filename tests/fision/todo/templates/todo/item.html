@@ -1,5 +1,5 @@
 {% load reactor %}
-<div {{ header }}>
+<div {% tag-header %}>
   <li class="
       {{ item.completed|then:'completed' }}
       {{ editing|then:'editing' }}

@@ -2,49 +2,47 @@ import difflib
 from uuid import uuid4
 from functools import reduce
 
+from django.http import HttpRequest
+from django.contrib.auth.models import AnonymousUser
+from django.shortcuts import resolve_url
+from django.template.loader import get_template, select_template
+from django.utils.safestring import mark_safe
+from django.utils.functional import cached_property
+
 try:
     from hmin.base import html_minify
 except ImportError:
     def html_minify(html):
         return html
 
-from django.contrib.auth.models import AnonymousUser
-from django.shortcuts import resolve_url
-from django.template.loader import get_template, select_template
-from django.utils.html import escape
-from django.utils.safestring import mark_safe
-from django.utils.functional import cached_property
-
 from . import settings
-from . import json
-from .utils import send_to_channel
+from .utils import send_to_channel, get_model
 
 
 class RootComponent(dict):
 
-    def __init__(self, context):
+    def __init__(self, request):
         super().__init__()
-        self._context = context
+        self._request = request
 
     @cached_property
     def _channel_name(self):
-        return self._context.get('channel_name')
+        return self._request.get('channel_name')
 
     def get_or_create(self, _name, _parent_id=None, id=None, **state):
         id = str(id or '')
+        kwargs = dict(
+            request=self._request,
+            id=id,
+            _root_component=self,
+            _parent_id=_parent_id,
+            **state
+        )
         component: Component = self.get(id)
         if component:
-            component._refresh(**state)
+            component.__init__(**kwargs)
         else:
-            component = Component._build(
-                _name,
-                _context=self._context,
-                _root_component=self,
-                _parent_id=_parent_id,
-                id=id,
-            )
-            component.mount(**state)
-            self[component.id] = component
+            component = self[id] = Component._build(_name, **kwargs)
         return component
 
     def pop(self, id, default=None):
@@ -61,7 +59,8 @@ class RootComponent(dict):
         origin = event['origin']
         for component in list(self.values()):
             if origin in component._subscriptions:
-                component._update(**event)
+                component = component._clone()
+                self[component.id] = component
                 html_diff = component._render_diff()
                 yield {'id': component.id, 'html_diff': html_diff}
 
@@ -79,48 +78,93 @@ class Component:
             name = name.strip('-').lower()
             cls._all[name] = cls
             cls._tag_name = name
+
+        cls._models = {}
+        for attr_name in dir(cls):
+            attr = getattr(cls, attr_name)
+            if (not attr_name.startswith('_')
+                    and attr_name.islower()
+                    and callable(attr)
+                    and not getattr(attr, 'private', False)):
+                cls._models[attr_name] = get_model(attr, ignore=['self'])
+
+        cls._constructor_model = get_model(cls)
+        cls._constructor_params = set(
+            cls._constructor_model.schema()['properties']
+        )
         return super().__init_subclass__()
 
-    def __str__(self):
-        state = escape(json.dumps(self.serialize()))
-        return mark_safe(
-            f'is="{self._tag_name}" '
-            f'id="{self.id}" '
-            f'state="{state}"'
-        )
-
-    def header(self):
-        return str(self)
-
-    # Constructors
-
     @classmethod
-    def _build(cls, tag_name, *args, **kwargs):
-        return cls._all[tag_name](*args, **kwargs)
+    def _build(
+        cls,
+        _tag_name,
+        request,
+        id: str = None,
+        _parent_id=None,
+        _root_component=None,
+        **kwargs
+    ):
+        klass = cls._all[_tag_name]
+        kwargs = dict(klass._constructor_model.parse_obj(kwargs), id=id)
+        return klass(
+            request=request,
+            _parent_id=_parent_id,
+            _root_component=_root_component,
+            **kwargs
+        )
 
     def __init__(
         self,
-        _context,
+        request,
+        id: str = None,
+        _parent_id: str = None,
         _root_component: RootComponent = None,
-        _parent_id=None,
-        id=None,
+        _last_sent_html: list = None,
+        **kwargs
     ):
-        self._context = _context
+        self.request = request
+        self.id = id or uuid4().hex
+        self._subscriptions = set()
+        self._parent_id = _parent_id
         self._destroy_sent = False
         self._is_frozen = False
         self._redirected_to = None
-        self._last_sent_html = []
+        self._last_sent_html = _last_sent_html or []
         if _root_component is None:
-            self._root_component = RootComponent(_context)
-        else:
-            self._root_component = _root_component
-        self._parent_id = _parent_id
-        self._subscriptions = set()
-        self.id = str(id or uuid4())
+            _root_component = RootComponent(request)
+        self._root_component = _root_component
 
-    # User events
+    @cached_property
+    def user(self):
+        return (
+            getattr(self.request, 'user', None) or
+            self.request.get('user') or
+            AnonymousUser()
+        )
 
-    def subscribe(self, *room_names):
+    def _clone(self):
+        return type(self)(
+            request=self.request,
+            _parent_id=self._parent_id,
+            _root_component=self._root_component,
+            _last_sent_html=self._last_sent_html,
+            **self.state
+        )
+
+    @property
+    def state_json(self):
+        return self._constructor_model(**self.state).json()
+
+    @property
+    def state(self):
+        state = {
+            name: value
+            for name, value in vars(self).items()
+            if name in self._constructor_params
+        }
+        return state | {'id': self.id}
+
+    def _subscribe(self, *room_names):
         for room_name in room_names:
             if room_name not in self._subscriptions:
                 self._subscriptions.add(room_name)
@@ -130,50 +174,29 @@ class Component:
                     room_name=room_name
                 )
 
-    def unsubscribe(self, room_name):
+    def _unsubscribe(self, room_name):
         self._subscriptions.discard(room_name)
 
     @cached_property
     def _channel_name(self):
-        return self._context.get('channel_name')
+        if isinstance(self.request, dict):
+            return self.request.get('channel_name')
 
     def _dispatch(self, name, args=None):
-        getattr(self, f'receive_{name}')(**(args or {}))
+        model = self._models[name]
+        getattr(self, name)(**dict(model.parse_obj(args or {})))
         return self._render_diff()
 
     # State persistence & front-end communication
 
-    def freeze(self, *args, **kwargs):
+    def freeze(self):
         self._is_frozen = True
 
-    def _update(self, **kwargs):
-        """Entrypoint for broadcast events"""
-        return self._refresh()
-
-    def _refresh(self, **state):
-        self.mount(**dict(self.serialize(), **state))
-
-    def mount(self, **state):
-        """
-        Override so given an initial state be able to  re-create or update the
-        component state
-        """
-        pass
-
-    def serialize(self):
-        """
-        Override to send this state to the front-end and calling `mount` for
-        state recreation
-        """
-        return {'id': self.id}
-
-    # Redirects & rendering
-
-    def send_destroy(self):
+    def destroy(self):
         self._destroy_sent = True
         send_to_channel(self._channel_name, 'remove', id=self.id)
 
-    def send_redirect(self, url,  *args, **kwargs):
+    def _send_redirect(self, url,  *args, **kwargs):
         url = resolve_url(url, *args, **kwargs)
         if self._channel_name:
             send_to_channel(self._channel_name, 'push_state', url=url)
@@ -181,7 +204,7 @@ class Component:
         else:
             self._redirected_to = url
 
-    def send_replace_state(self, url, _title=None, *args, **kwargs):
+    def _send_replace_state(self, url, _title=None, *args, **kwargs):
         url = resolve_url(url, *args, **kwargs)
         if self._channel_name:
             send_to_channel(
@@ -189,11 +212,11 @@ class Component:
                 title=_title, url=url
             )
 
-    def send_parent(self, _name, **kwargs):
+    def _send_parent(self, _name, **kwargs):
         if self._parent_id:
-            self.send(_name, id=self._parent_id, **kwargs)
+            self._send(_name, id=self._parent_id, **kwargs)
 
-    def send(self, _name, id=None, **kwargs):
+    def _send(self, _name, id=None, **kwargs):
         send_to_channel(
             self._channel_name,
             'send_component',
@@ -235,7 +258,12 @@ class Component:
                 f'>'
             )
         else:
-            html = self._get_template().render(self._get_context()).strip()
+            if isinstance(self.request, HttpRequest):
+                request = self.request
+            else:
+                request = None
+            template = self._get_template()
+            html = template.render(self._get_context(), request=request).strip()
 
         if settings.USE_HMIN:
             html = html_minify(html)
@@ -253,9 +281,9 @@ class Component:
     def _get_context(self):
         return dict(
             {
-                attribute: getattr(self, attribute)
-                for attribute in dir(self)
-                if not attribute.startswith('_')
+                attr: getattr(self, attr)
+                for attr in dir(self)
+                if not attr.startswith('_')
             },
             this=self,
         )
@@ -263,16 +291,10 @@ class Component:
 
 class AuthComponent(Component, public=False):
 
-    def mount(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        super().__(*args, **kwargs)
         if self.user.is_authenticated:
-            # Listen to user logout and refresh
-            return True
-        else:
-            self.send_destroy()
-
-    @cached_property
-    def user(self):
-        return self._context.get('user', AnonymousUser())
+            self.destroy()
 
 
 class StaffComponent(AuthComponent, public=False):
@@ -280,7 +302,7 @@ class StaffComponent(AuthComponent, public=False):
         if super().mount() and self.user.is_staff:
             return True
         else:
-            self.send_destroy()
+            self.destroy()
 
 
 def compress_diff(diff, diff_item):

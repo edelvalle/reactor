@@ -48,24 +48,28 @@ class ReactorChannel
     if @online
       @websocket.send JSON.stringify data
 
-  send_join: (tag_name, state) ->
+  send_join: (tag_name, id, state) ->
     console.log '>>> JOIN', tag_name, state
     @send 'join',
       tag_name: tag_name
+      id: id
       state: state
 
   send_leave: (id) ->
     console.log '>>> LEAVE', id
     @send 'leave', id: id
 
-  send_user_event: (element, name, args) ->
-    console.log '>>> USER_EVENT', element.tag_name, name, args
+  send_user_event: (element, name, implicit_args, explicit_args) ->
+    console.log(
+      '>>> USER_EVENT', element.tag_name, name, implicit_args, explicit_args
+    )
     origin = new Date()
     if @online
       @send 'user_event',
         id: element.id
         name: name
-        args: args
+        implicit_args: implicit_args
+        explicit_args: explicit_args
 
   reconnect: ->
     @retry_interval = 0
@@ -167,11 +171,11 @@ transpile = (el) ->
       }
 
   for {old_name, name, code} in replacements
-      if old_name
-        el.attributes.removeNamedItem old_name
-      nu_attr = document.createAttribute name
-      nu_attr.value = code
-      el.attributes.setNamedItem nu_attr
+    if old_name
+      el.attributes.removeNamedItem old_name
+    nu_attr = document.createAttribute name
+    nu_attr.value = code
+    el.attributes.setNamedItem nu_attr
 
 
 declare_components = (component_types) ->
@@ -186,7 +190,7 @@ declare_components = (component_types) ->
         @tag_name = @getAttribute 'is'
         @_last_received_html = []
 
-      state: -> JSON.parse @getAttribute 'state'
+      state: -> @getAttribute 'state'
 
       connectedCallback: ->
         eval @getAttribute 'onreactor-init'
@@ -215,7 +219,7 @@ declare_components = (component_types) ->
 
       connect: ->
         if @is_root()
-          reactor_channel.send_join @tag_name, @state()
+          reactor_channel.send_join @tag_name, @id, @state()
 
       apply_diff: (html_diff) ->
         console.log "#{new Date() - origin}ms"
@@ -233,7 +237,7 @@ declare_components = (component_types) ->
         html = html.join ' '
         window.requestAnimationFrame =>
           morphdom this, html,
-            onBeforeElUpdated: (from_el, to_el) =>
+            onBeforeElUpdated: (from_el, to_el) ->
               # Prevent object from being updated
               if from_el.hasAttribute(':once')
                 return false
@@ -256,10 +260,12 @@ declare_components = (component_types) ->
                 return false
 
               return true
+
             onElUpdated: (el) ->
               code = el.getAttribute?('onreactor-updated')
               if code
                 (-> eval code).bind(el)()
+
             onNodeAdded: (el) ->
               transpile el
               code = el.getAttribute?('onreactor-added')
@@ -269,78 +275,43 @@ declare_components = (component_types) ->
           @querySelector('[\\:focus]:not([disabled])')?.focus()
 
       dispatch: (name, form, args) ->
-        args = merge_objects (@serialize form or this), args
-        reactor_channel.send_user_event(this, name, args)
+        reactor_channel.send_user_event(
+          this
+          name
+          @serialize(form or this)
+          args
+        )
 
       serialize: (form) ->
-        # Serialize the fields with name attribute and creates a dictionary
-        # with them. It support nested name spaces.
-        #
-        # Ex1:
-        #   <input name="a" value="q">
-        #   <input name="b" value="x">
-        # Result: {a: "q", b: "x"}
-        #
-        # Ex2:
-        #   <input name="query" value="q">
-        #   <input name="person.name" value="John">
-        #   <input name="person.age" value="99">
-        # Result: {query: "q", person: {name: "John", value: "99"}}
-        #
-        # Ex3:
-        #   <input name="query" value="q">
-        #   <input name="persons[].name" value="a">
-        #   <input name="persons[].name" value="b">
-        # Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
-
-        state = {}
         for el in form.querySelectorAll('[name]')
-          if el.closest('[is]') is this
-            value = (
-              if el.type.toLowerCase() is 'checkbox'
-                if el.checked
-                  el.getAttribute('value') or true
-                else if el.getAttribute('name').endsWith('[]')
-                  null
-                else
-                  false
-              else if el.type.toLowerCase() is 'radio'
+          if el.closest('[is]') isnt this
+            continue
+          el_type = el.type.toLowerCase()
+          value = (
+            switch el.type.toLowerCase()
+              when 'checkbox'
                 if el.checked
                   el.value or true
                 else
                   null
-              else if el.type.toLowerCase() is 'select-multiple'
+              when 'radio'
+                if el.checked
+                  el.value or true
+                else
+                  null
+              when 'select-multiple'
                 (option.value for option in el.selectedOptions)
-              else if el.hasAttribute 'contenteditable'
+              when el.hasAttribute 'contenteditable'
                 if el.hasAttribute ':as-text'
                   el.innerText
                 else
                   el.innerHTML.trim()
               else
                 el.value
-            )
-            if value is null
-              continue
-            for part in el.getAttribute('name').split('.').reverse()
-              obj = {}
-              if part.endsWith('[]')
-                obj[part[...-2]] = [value]
-              else
-                obj[part] = value
-              value = obj
-            state = merge_objects state, value
-        state
-
-      merge_objects = (target, source) ->
-        for k, v of source
-          target_value = target[k]
-          if Array.isArray target_value
-            target_value.push v...
-          else if typeof target_value is 'object'
-            merge_objects target_value, v
-          else
-            target[k] = v
-        target
+          )
+          if value is null
+            continue
+          [el.getAttribute('name'), value]
 
     customElements.define(component_name, Component, extends: base_html_element)
 

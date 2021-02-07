@@ -1,6 +1,8 @@
 from django import template
 from django.template.base import Token, Parser, Node
 from django.template.loader import render_to_string
+from django.core.signing import Signer
+from django.utils.html import format_html
 
 
 from .. import json
@@ -18,6 +20,17 @@ def reactor_header():
     )
 
 
+@register.simple_tag(takes_context=True, name='tag-header')
+def tag_header(context):
+    component = context['this']
+    return format_html(
+        'is="{tag_name}" id="{id}" state="{state}"',
+        tag_name=component._tag_name,
+        id=component.id,
+        state=Signer().sign(component.state_json),
+    )
+
+
 @register.simple_tag(takes_context=True)
 def component(context, _name, id=None, **kwargs):
     parent = context.get('this')  # type: Component
@@ -29,8 +42,12 @@ def component(context, _name, id=None, **kwargs):
             **kwargs
         )
     else:
-        component = Component._build(_name, _context=context, id=id)
-        component.mount(**kwargs)
+        component = Component._build(
+            _name,
+            request=context['request'],
+            id=id,
+            **kwargs
+        )
     return component._render()
 
 

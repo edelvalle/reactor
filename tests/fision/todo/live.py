@@ -7,17 +7,11 @@ from .models import Item
 class XTodoList(Component):
     template_name = 'todo/list.html'
 
-    def mount(self, showing='all', new_item='', **kwargs):
+    def __init__(self, showing='all', new_item='', **kwargs):
+        super().__init__(**kwargs)
         self.showing = showing
         self.new_item = new_item
-        self.subscribe('item.new')
-
-    def serialize(self):
-        return dict(
-            id=self.id,
-            new_item=self.new_item,
-            showing=self.showing,
-        )
+        self._subscribe('item.new')
 
     @property
     def items(self):
@@ -28,48 +22,43 @@ class XTodoList(Component):
         return self.items.count() == self.items.completed.count()
 
     @atomic
-    def receive_add(self, new_item, **kwargs):
+    def add(self, new_item: str):
         Item.objects.create(text=new_item)
         self.new_item = ''
 
-    def receive_show(self, showing, **kwargs):
+    def show(self, showing: str):
         self.showing = showing
 
     @atomic
-    def receive_toggle_all(self, toggle_all, **kwargs):
+    def toggle_all(self, toggle_all: bool):
         self.items.update(completed=toggle_all)
 
     @atomic
-    def receive_clear_completed(self, **kwargs):
+    def clear_completed(self):
         self.items.completed.delete()
 
 
 class XTodoCounter(Component):
     template_name = 'todo/counter.html'
 
-    def mount(self, items=None, *args, **kwargs):
+    def __init__(self, items=None, **kwargs):
+        super().__init__(**kwargs)
         self.items = items or Item.objects.all()
-        self.subscribe('item')
+        self._subscribe('item')
 
 
 class XTodoItem(Component):
     template_name = 'todo/item.html'
 
-    def mount(self, item=None, editing=False, showing='all', **kwargs):
+    def __init__(self, item=None, editing=False, showing='all', **kwargs):
+        super().__init__(**kwargs)
         self.editing = editing
         self.showing = showing
         self.item = item or Item.objects.filter(id=self.id).first()
         if self.item:
-            self.subscribe(f'item.{self.item.id}')
+            self._subscribe(f'item.{self.item.id}')
         else:
-            self.send_destroy()
-
-    def serialize(self):
-        return dict(
-            id=self.id,
-            editing=self.editing,
-            showing=self.showing,
-        )
+            super().destroy()
 
     def is_visible(self):
         return (
@@ -79,20 +68,21 @@ class XTodoItem(Component):
         )
 
     @atomic
-    def receive_destroy(self, **kwargs):
+    def destroy(self):
         self.item.delete()
+        super().destroy()
 
     @atomic
-    def receive_completed(self, completed, **kwargs):
+    def completed(self, completed: bool = False):
         self.item.completed = completed
         self.item.save()
 
-    def receive_toggle_editing(self, **kwargs):
+    def toggle_editing(self):
         if not self.item.completed:
             self.editing = not self.editing
 
     @atomic
-    def receive_save(self, text, **kwargs):
+    def save(self, text):
         self.item.text = text
         self.item.save()
         self.editing = False

@@ -2,9 +2,11 @@ import logging
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
+from django.core.signing import Signer
 
 from . import json
 from .component import RootComponent, Component
+from .utils import extract_data
 
 
 log = logging.getLogger('reactor')
@@ -15,6 +17,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.signer = Signer()
         self.subscriptions = set()
 
     # Group operations
@@ -44,7 +47,7 @@ class ReactorConsumer(JsonWebsocketConsumer):
     def connect(self):
         super().connect()
         self.scope['channel_name'] = self.channel_name
-        self.root_component = RootComponent(context=self.scope)
+        self.root_component = RootComponent(request=self.scope)
         self.send_json({
             'type': 'components',
             'component_types': {
@@ -65,15 +68,18 @@ class ReactorConsumer(JsonWebsocketConsumer):
         payload = request['payload']
         getattr(self, f'receive_{name}')(**payload)
 
-    def receive_join(self, tag_name, state):
+    def receive_join(self, tag_name, id, state):
+        state = json.loads(self.signer.unsign(state))
         log.debug(f'>>> JOIN {tag_name} {state}')
-        component = self.root_component.get_or_create(tag_name, **state)
+        component = self.root_component.get_or_create(tag_name, id=id, **state)
         html_diff = component._render_diff()
         self.render({'id': component.id, 'html_diff': html_diff})
 
-    def receive_user_event(self, id, name, args):
-        log.debug(f'>>> USER_EVENT {name} {args}')
-        html_diff = self.root_component.dispatch_user_event(id, name, args)
+    def receive_user_event(self, id, name, implicit_args, explicit_args):
+        explicit_args = explicit_args or {}
+        kwargs = dict(extract_data(implicit_args), **explicit_args)
+        log.debug(f'>>> USER_EVENT {name} {kwargs}')
+        html_diff = self.root_component.dispatch_user_event(id, name, kwargs)
         self.render({'id': id, 'html_diff': html_diff})
 
     def receive_leave(self, id):

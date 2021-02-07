@@ -1,5 +1,5 @@
 {% load reactor %}
-<div is="x-todo-list" id="{{ this.id }}" state="{{ this.serialize|tojson }}">
+<div {% tag-header %}>
   <section class="todoapp">
     <header class="header">
       <h1>todos</h1>

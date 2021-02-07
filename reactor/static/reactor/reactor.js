@@ -73,10 +73,11 @@
       }
     }
 
-    send_join(tag_name, state) {
+    send_join(tag_name, id, state) {
       console.log('>>> JOIN', tag_name, state);
       return this.send('join', {
         tag_name: tag_name,
+        id: id,
         state: state
       });
     }
@@ -88,14 +89,15 @@
       });
     }
 
-    send_user_event(element, name, args) {
-      console.log('>>> USER_EVENT', element.tag_name, name, args);
+    send_user_event(element, name, implicit_args, explicit_args) {
+      console.log('>>> USER_EVENT', element.tag_name, name, implicit_args, explicit_args);
       origin = new Date();
       if (this.online) {
         return this.send('user_event', {
           id: element.id,
           name: name,
-          args: args
+          implicit_args: implicit_args,
+          explicit_args: explicit_args
         });
       }
     }
@@ -254,216 +256,190 @@
         continue;
       }
       base_element = document.createElement(base_html_element);
-      Component = (function() {
-        var merge_objects;
+      Component = class Component extends base_element.constructor {
+        constructor(...args) {
+          super(...args);
+          this.tag_name = this.getAttribute('is');
+          this._last_received_html = [];
+        }
 
-        class Component extends base_element.constructor {
-          constructor(...args) {
-            super(...args);
-            this.tag_name = this.getAttribute('is');
-            this._last_received_html = [];
+        state() {
+          return this.getAttribute('state');
+        }
+
+        connectedCallback() {
+          eval(this.getAttribute('onreactor-init'));
+          this.deep_transpile();
+          return this.connect();
+        }
+
+        disconnectedCallback() {
+          eval(this.getAttribute('onreactor-leave'));
+          return reactor_channel.send_leave(this.id);
+        }
+
+        deep_transpile(element = null) {
+          var child, code, i, len, ref, results1;
+          if (element == null) {
+            transpile(this);
+            element = this;
           }
-
-          state() {
-            return JSON.parse(this.getAttribute('state'));
-          }
-
-          connectedCallback() {
-            eval(this.getAttribute('onreactor-init'));
-            this.deep_transpile();
-            return this.connect();
-          }
-
-          disconnectedCallback() {
-            eval(this.getAttribute('onreactor-leave'));
-            return reactor_channel.send_leave(this.id);
-          }
-
-          deep_transpile(element = null) {
-            var child, code, i, len, ref, results1;
-            if (element == null) {
-              transpile(this);
-              element = this;
+          ref = element.children;
+          results1 = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            child = ref[i];
+            transpile(child);
+            code = child.getAttribute('onreactor-init');
+            if (code) {
+              (function() {
+                return eval(code);
+              }).bind(child)();
             }
-            ref = element.children;
-            results1 = [];
-            for (i = 0, len = ref.length; i < len; i++) {
-              child = ref[i];
-              transpile(child);
-              code = child.getAttribute('onreactor-init');
-              if (code) {
-                (function() {
-                  return eval(code);
-                }).bind(child)();
-              }
-              results1.push(this.deep_transpile(child));
+            results1.push(this.deep_transpile(child));
+          }
+          return results1;
+        }
+
+        is_root() {
+          return !this.parent_component();
+        }
+
+        parent_component() {
+          var ref;
+          return (ref = this.parentElement) != null ? ref.closest('[is]') : void 0;
+        }
+
+        connect() {
+          if (this.is_root()) {
+            return reactor_channel.send_join(this.tag_name, this.id, this.state());
+          }
+        }
+
+        apply_diff(html_diff) {
+          var cursor, diff, html, i, len;
+          console.log(`${new Date() - origin}ms`);
+          html = [];
+          cursor = 0;
+          for (i = 0, len = html_diff.length; i < len; i++) {
+            diff = html_diff[i];
+            if (typeof diff === 'string') {
+              html.push(diff);
+            } else if (diff < 0) {
+              cursor -= diff;
+            } else {
+              html.push(...this._last_received_html.slice(cursor, cursor + diff));
+              cursor += diff;
             }
-            return results1;
           }
-
-          is_root() {
-            return !this.parent_component();
-          }
-
-          parent_component() {
+          this._last_received_html = html;
+          html = html.join(' ');
+          return window.requestAnimationFrame(() => {
             var ref;
-            return (ref = this.parentElement) != null ? ref.closest('[is]') : void 0;
-          }
-
-          connect() {
-            if (this.is_root()) {
-              return reactor_channel.send_join(this.tag_name, this.state());
-            }
-          }
-
-          apply_diff(html_diff) {
-            var cursor, diff, html, i, len;
-            console.log(`${new Date() - origin}ms`);
-            html = [];
-            cursor = 0;
-            for (i = 0, len = html_diff.length; i < len; i++) {
-              diff = html_diff[i];
-              if (typeof diff === 'string') {
-                html.push(diff);
-              } else if (diff < 0) {
-                cursor -= diff;
-              } else {
-                html.push(...this._last_received_html.slice(cursor, cursor + diff));
-                cursor += diff;
-              }
-            }
-            this._last_received_html = html;
-            html = html.join(' ');
-            return window.requestAnimationFrame(() => {
-              var ref;
-              morphdom(this, html, {
-                onBeforeElUpdated: (from_el, to_el) => {
-                  var ref, should_patch;
-                  // Prevent object from being updated
-                  if (from_el.hasAttribute(':once')) {
-                    return false;
-                  }
-                  if (from_el.hasAttribute(':keep')) {
-                    to_el.value = from_el.value;
-                    to_el.checked = from_el.checked;
-                  }
-                  transpile(to_el);
-                  should_patch = from_el === document.activeElement && ((ref = from_el.tagName) === 'INPUT' || ref === 'SELECT' || ref === 'TEXTAREA') && !from_el.hasAttribute(':override');
-                  if (should_patch) {
-                    to_el.getAttributeNames().forEach(function(name) {
-                      return from_el.setAttribute(name, to_el.getAttribute(name));
-                    });
-                    from_el.readOnly = to_el.readOnly;
-                    return false;
-                  }
-                  return true;
-                },
-                onElUpdated: function(el) {
-                  var code;
-                  code = typeof el.getAttribute === "function" ? el.getAttribute('onreactor-updated') : void 0;
-                  if (code) {
-                    return (function() {
-                      return eval(code);
-                    }).bind(el)();
-                  }
-                },
-                onNodeAdded: function(el) {
-                  var code;
-                  transpile(el);
-                  code = typeof el.getAttribute === "function" ? el.getAttribute('onreactor-added') : void 0;
-                  if (code) {
-                    return (function() {
-                      return eval(code);
-                    }).bind(el)();
-                  }
+            morphdom(this, html, {
+              onBeforeElUpdated: function(from_el, to_el) {
+                var ref, should_patch;
+                // Prevent object from being updated
+                if (from_el.hasAttribute(':once')) {
+                  return false;
                 }
-              });
-              return (ref = this.querySelector('[\\:focus]:not([disabled])')) != null ? ref.focus() : void 0;
+                if (from_el.hasAttribute(':keep')) {
+                  to_el.value = from_el.value;
+                  to_el.checked = from_el.checked;
+                }
+                transpile(to_el);
+                should_patch = from_el === document.activeElement && ((ref = from_el.tagName) === 'INPUT' || ref === 'SELECT' || ref === 'TEXTAREA') && !from_el.hasAttribute(':override');
+                if (should_patch) {
+                  to_el.getAttributeNames().forEach(function(name) {
+                    return from_el.setAttribute(name, to_el.getAttribute(name));
+                  });
+                  from_el.readOnly = to_el.readOnly;
+                  return false;
+                }
+                return true;
+              },
+              onElUpdated: function(el) {
+                var code;
+                code = typeof el.getAttribute === "function" ? el.getAttribute('onreactor-updated') : void 0;
+                if (code) {
+                  return (function() {
+                    return eval(code);
+                  }).bind(el)();
+                }
+              },
+              onNodeAdded: function(el) {
+                var code;
+                transpile(el);
+                code = typeof el.getAttribute === "function" ? el.getAttribute('onreactor-added') : void 0;
+                if (code) {
+                  return (function() {
+                    return eval(code);
+                  }).bind(el)();
+                }
+              }
             });
-          }
+            return (ref = this.querySelector('[\\:focus]:not([disabled])')) != null ? ref.focus() : void 0;
+          });
+        }
 
-          dispatch(name, form, args) {
-            args = merge_objects(this.serialize(form || this), args);
-            return reactor_channel.send_user_event(this, name, args);
-          }
+        dispatch(name, form, args) {
+          return reactor_channel.send_user_event(this, name, this.serialize(form || this), args);
+        }
 
-          serialize(form) {
-            var el, i, j, len, len1, obj, option, part, ref, ref1, state, value;
-            // Serialize the fields with name attribute and creates a dictionary
-            // with them. It support nested name spaces.
-
-            // Ex1:
-            //   <input name="a" value="q">
-            //   <input name="b" value="x">
-            // Result: {a: "q", b: "x"}
-
-            // Ex2:
-            //   <input name="query" value="q">
-            //   <input name="person.name" value="John">
-            //   <input name="person.age" value="99">
-            // Result: {query: "q", person: {name: "John", value: "99"}}
-
-            // Ex3:
-            //   <input name="query" value="q">
-            //   <input name="persons[].name" value="a">
-            //   <input name="persons[].name" value="b">
-            // Result: {query: "q", persons: [{name: "a"}, {name: "b"}]}
-            state = {};
-            ref = form.querySelectorAll('[name]');
-            for (i = 0, len = ref.length; i < len; i++) {
-              el = ref[i];
-              if (el.closest('[is]') === this) {
-                value = (el.type.toLowerCase() === 'checkbox' ? el.checked ? el.getAttribute('value') || true : el.getAttribute('name').endsWith('[]') ? null : false : el.type.toLowerCase() === 'radio' ? el.checked ? el.value || true : null : el.type.toLowerCase() === 'select-multiple' ? (function() {
-                  var j, len1, ref1, results1;
+        serialize(form) {
+          var el, el_type, i, len, option, ref, results1, value;
+          ref = form.querySelectorAll('[name]');
+          results1 = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            el = ref[i];
+            if (el.closest('[is]') !== this) {
+              continue;
+            }
+            el_type = el.type.toLowerCase();
+            value = ((function() {
+              var j, len1, ref1, results2;
+              switch (el.type.toLowerCase()) {
+                case 'checkbox':
+                  if (el.checked) {
+                    return el.value || true;
+                  } else {
+                    return null;
+                  }
+                  break;
+                case 'radio':
+                  if (el.checked) {
+                    return el.value || true;
+                  } else {
+                    return null;
+                  }
+                  break;
+                case 'select-multiple':
                   ref1 = el.selectedOptions;
-                  results1 = [];
+                  results2 = [];
                   for (j = 0, len1 = ref1.length; j < len1; j++) {
                     option = ref1[j];
-                    results1.push(option.value);
+                    results2.push(option.value);
                   }
-                  return results1;
-                })() : el.hasAttribute('contenteditable') ? el.hasAttribute(':as-text') ? el.innerText : el.innerHTML.trim() : el.value);
-                if (value === null) {
-                  continue;
-                }
-                ref1 = el.getAttribute('name').split('.').reverse();
-                for (j = 0, len1 = ref1.length; j < len1; j++) {
-                  part = ref1[j];
-                  obj = {};
-                  if (part.endsWith('[]')) {
-                    obj[part.slice(0, -2)] = [value];
+                  return results2;
+                case el.hasAttribute('contenteditable'):
+                  if (el.hasAttribute(':as-text')) {
+                    return el.innerText;
                   } else {
-                    obj[part] = value;
+                    return el.innerHTML.trim();
                   }
-                  value = obj;
-                }
-                state = merge_objects(state, value);
+                  break;
+                default:
+                  return el.value;
               }
+            })());
+            if (value === null) {
+              continue;
             }
-            return state;
+            results1.push([el.getAttribute('name'), value]);
           }
+          return results1;
+        }
 
-        };
-
-        merge_objects = function(target, source) {
-          var k, target_value, v;
-          for (k in source) {
-            v = source[k];
-            target_value = target[k];
-            if (Array.isArray(target_value)) {
-              target_value.push(...v);
-            } else if (typeof target_value === 'object') {
-              merge_objects(target_value, v);
-            } else {
-              target[k] = v;
-            }
-          }
-          return target;
-        };
-
-        return Component;
-
-      }).call(this);
+      };
       results.push(customElements.define(component_name, Component, {
         extends: base_html_element
       }));
