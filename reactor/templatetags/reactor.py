@@ -20,7 +20,7 @@ def reactor_header():
     )
 
 
-@register.simple_tag(takes_context=True, name='tag-header')
+@register.simple_tag(takes_context=True)
 def tag_header(context):
     component = context['this']
     return format_html(
