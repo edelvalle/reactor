@@ -293,7 +293,7 @@ class AuthComponent(Component, public=False):
 
     def __init__(self, *args, **kwargs):
         super().__(*args, **kwargs)
-        if self.user.is_authenticated:
+        if not self.user.is_authenticated:
             self.destroy()
 
 
