@@ -112,6 +112,8 @@ AUTO_BROADCAST = {
 - `then`: Use as a shorthand for if, `{% if expression %}print-this{% endif %}` is equivalent to `{{ expresssion|then:'print-this' }}`.
 - `ifnot`: Use a shorthand for if not, `{% if not expression %}print-this{% endif %}` is equivalent to `{{ expresssion|ifnot:'print-this' }}, and can be concatenated with then, like in: `{{ expression|then:'positive'|ifnot:'negative' }}`
 - `eq`: Compares its arguments and returns `"yes"` or empty string, `{{ this_thing|qe:other_other|then:'print-this' }}`.
+- `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
+- `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
 
 ### `reactor.component` module
 
@@ -122,23 +124,14 @@ AUTO_BROADCAST = {
 
 #### Component API
 
+- `__init__`: Is responsable for the component initialization, pass what ever you need to bootstrap the component state.
 - `template_name`: Set the name of the template of the component.
 - `extends`: Tag name HTML element the component extends.
-- `serialize`: Should returns a dictionary with the persistent state of the component (stored in the front-end) so when the components is connects to the back-end (or reconnects) that state can be recreated, By default serializes just the `id` of the component, and the `id` should always be serialized.
-- `mount(**kwargs)`: Loads the initial state of the component when is rendered from the back-end or it reconnects from the front-end (using the information created by `serialize`), it is also called in case a subscription of the component is triggered.
 - `subscribe(*names)`: Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
 - `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`.
-- `send_destroy()`: Removes the component from the interface.
+- `destroy()`: Removes the component from the interface.
 - `send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
 - `send_parent(_name, kwargs)`: Sends a message with the name `_name` to the parent component.
-
-
-#### AuthComponent API
-
-This component ensures the user is logged in or redirects the user to the login screen; when using this component and overriding `mount` make sure to call the support mount first.
-
-- `mount(**kwargs)`: Same as before, but returns `True` if the user is logged in.
-- `user`: the current logged-in user.
 
 ## Front-end APIs
 
@@ -183,41 +176,6 @@ This are custom events triggered by reactor in different instants of the life cy
 - `@reactor-updated`: Triggered on any HTML element that is updated, after the update happens.
 - `@reactor-leave`: Triggered on the root element when the element had been removed from the DOM.
 
-### Serialization
-
-Serialization of means to look at a chunk of HTML and extract the value of all elements with a `name` attribute in it. Reactor serialization supports nesting:
-
-Note on `contenteditable` elements, if they hava a name attribute they are serialized taking their inner HTML, if they have the special attribute `:as-text`, just their text is serialized.
-
-#### Example 1
-
-```html
-<input name="a" value="q">
-<input name="b" value="x">
-```
-
-Result: `{a: "q", b: "x"}`
-
-#### Example 2
-
-```html
-<input name="query" value="q">
-<input name="person.name" value="John">
-<input name="person.age" value="99">
-```
-
-Result: `{query: "q", person: {name: "John", value: "99"}}`
-
-#### Example 3
-
-```html
-<input name="query" value="q">
-<input name="persons[].name" value="a">
-<input name="persons[].name" value="b">
-```
-
-Result: `{query: "q", persons: [{name: "a"}, {name: "b"}]}`
-
 ### Event handlers in the back-end
 
 Given:
@@ -229,11 +187,9 @@ Given:
 You will need an event handler in that component in the back-end:
 
 ```python
- def receive_inc(self, amount, **kwargs):
+def inc(self, amount: int):
     pass
 ```
-
-Always prefix the method name with `receice_` and add `**kwargs` at the end because more data is always sent to the component, like the component's own `id`.
 
 ## Simple example of a counter
 
@@ -241,7 +197,7 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<div {{ header }}>
+<div {% tag-header %}>
   {{ amount }}
   <button @click="inc">+</button>
   <button @click="dec">-</button>
@@ -249,7 +205,7 @@ In your app create a template `x-counter.html`:
 </div>
 ```
 
-Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of reconnection to the back-end.
+Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of re-connection to the back-end.
 
 Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
 
@@ -260,42 +216,21 @@ Now let's write the behavior part of the component in `live.py`:
 ```python
 from reactor import Component
 
+
 class XCounter(Component):
-
-    amount = None
-
-    # reference the template from above
     template_name = 'x-counter.html'
 
-    # A component is instantiated during normal rendering and when the component
-    # connects from the front-end. Then  __init__ is called passing `context` of
-    # creation (in case of HTML  rendering is the context of the template, in
-    # case of a WebSocket connection is the scope of django channels) Also the
-    # `id` is passed if any is provided, otherwise a `uuid4` is  generated on
-    # the fly.
-
-    # This method is called after __init__ passing the initial state of the
-    # Component, this method is responsible taking the state of the component
-    # and construct or reconstruct the component. Sometimes loading things from
-    # the database like tests of this project.
-    def mount(self, amount=0, **kwargs):
+    def __init__(self, amount: int = 0, **kwargs):
+        super().__init__(**kwargs)
         self.amount = amount
 
-    # This method is used to capture the essence of the state of a component
-    # state, so it can be reconstructed at any given time on the future.
-    # By passing what ever is returned by this method to `mount`.
-    def serialize(self):
-        return dict(id=self.id, amount=self.amount)
-
-    # This are the event handlers they always start with `receive_`
-
-    def receive_inc(self, **kwargs):
+    def inc(self):
         self.amount += 1
 
-    def receive_dec(self, **kwargs):
+    def dec(self):
         self.amount -= 1
 
-    def receive_set_to(self, amount, **kwargs):
+    def set_to(self, amount: int):
         self.amount = amount
 ```
 
