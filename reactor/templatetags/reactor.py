@@ -27,7 +27,7 @@ def tag_header(context):
         'is="{tag_name}" id="{id}" state="{state}"',
         tag_name=component._tag_name,
         id=component.id,
-        state=Signer().sign(component.state_json),
+        state=Signer().sign(component._state_json),
     )
 
 

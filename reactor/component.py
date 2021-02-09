@@ -42,7 +42,8 @@ class RootComponent(dict):
         if component:
             component.__init__(**kwargs)
         else:
-            component = self[id] = Component._build(_name, **kwargs)
+            component = Component._build(_name, **kwargs)
+            self[component.id] = component
         return component
 
     def pop(self, id, default=None):
@@ -148,15 +149,15 @@ class Component:
             _parent_id=self._parent_id,
             _root_component=self._root_component,
             _last_sent_html=self._last_sent_html,
-            **self.state
+            **self._state
         )
 
     @property
-    def state_json(self):
-        return self._constructor_model(**self.state).json()
+    def _state_json(self):
+        return self._constructor_model(**self._state).json()
 
     @property
-    def state(self):
+    def _state(self):
         state = {
             name: value
             for name, value in vars(self).items()
