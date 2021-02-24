@@ -16,6 +16,7 @@ except ImportError:
         return html
 
 from . import settings
+from . import json
 from .utils import send_to_channel, get_model
 
 
@@ -106,7 +107,8 @@ class Component:
         **kwargs
     ):
         klass = cls._all[_tag_name]
-        kwargs = dict(klass._constructor_model.parse_obj(kwargs), id=id)
+        if not _parent_id:
+            kwargs = dict(klass._constructor_model.parse_obj(kwargs), id=id)
         return klass(
             request=request,
             _parent_id=_parent_id,
@@ -154,7 +156,10 @@ class Component:
 
     @property
     def _state_json(self):
-        return self._constructor_model(**self._state).json()
+        if self._parent_id:
+            return json.dumps({'id': self.id})
+        else:
+            return self._constructor_model(**self._state).json()
 
     @property
     def _state(self):
