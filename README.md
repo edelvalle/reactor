@@ -97,7 +97,6 @@ AUTO_BROADCAST = {
 }
 ```
 
-- `REACTOR_INCLUDE_TURBOLINKS` (default: `False`), when enabled will load [Turbolinks](https://github.com/turbolinks/turbolinks) as part of the reactor headers and the reactor redirects (`Component.send_redirect`) will use `Turbolinks.visit`. This also affects all the links in your application, check out the documentation of Turbolinks.
 - `REACTOR_USE_HTML_DIFF` (default: `True`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
 - `REACTOR_USE_HMIN` (default: `False`), when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
 
@@ -127,15 +126,15 @@ AUTO_BROADCAST = {
 - `__init__`: Is responsable for the component initialization, pass what ever you need to bootstrap the component state.
 - `template_name`: Set the name of the template of the component.
 - `extends`: Tag name HTML element the component extends.
-- `subscribe(*names)`: Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
-- `send_redirect(url, *args, **kwargs )`: Resolves the `url`, and instructs the front-end to redirect to that `url`.
+- `_subscribe(*names)`: Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
+- `visit(url, action='advance', **kwargs )`: Resolves the `url` using `**kwargs`, and depending on `action` the navigation will be `advance` (pushState) or `replace` (repalceState).
 - `destroy()`: Removes the component from the interface.
-- `send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
-- `send_parent(_name, kwargs)`: Sends a message with the name `_name` to the parent component.
+- `_send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
+- `_send_parent(_name, kwargs)`: Sends a message with the name `_name` to the parent component.
 
 ## Front-end APIs
 
-- `reactor.push_state(url)`: pulls the next page from the backend with a get request, and applies it to the current page.
+- `reactor.visit(url, {action='advance'})`: if `action` is `advance`, calls `window.history.replaceState`, else tries to talk to [Turbo](https://turbo.hotwire.dev/handbook/drive#application-visits) or falls back to `window.history.pushState` or just `window.location.assign`.
 - `reactor.send(element, event_name, args)`: send the event `event_name` with the `args` parameters to the HTML `element`. It what is used to forward user event to the back-end.
 
 ### Special HTMLElement attributes
