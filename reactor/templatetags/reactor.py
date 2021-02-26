@@ -1,23 +1,18 @@
 from django import template
 from django.template.base import Token, Parser, Node
-from django.template.loader import render_to_string
 from django.core.signing import Signer
 from django.utils.html import format_html
 
 
 from .. import json
 from ..component import Component
-from ..settings import INCLUDE_TURBOLINKS
 
 register = template.Library()
 
 
-@register.simple_tag
+@register.inclusion_tag('reactor_header.html')
 def reactor_header():
-    return render_to_string(
-        'reactor_header.html',
-        {'include_tlinks': INCLUDE_TURBOLINKS}
-    )
+    return {}
 
 
 @register.simple_tag(takes_context=True)

@@ -112,17 +112,9 @@ class ReactorConsumer(JsonWebsocketConsumer):
         self.receive_leave(event['id'])
         self.send_json(dict(event, type='remove'))
 
-    def redirect(self, event):
-        log.debug(f"<<< REDIRECT {event['url']}")
-        self.send_json(dict(event, type='redirect'))
-
-    def push_state(self, event):
-        log.debug(f"<<< PUSH-STATE {event['url']}")
-        self.send_json(dict(event, type='push_state'))
-
-    def replace_state(self, event):
-        log.debug(f"<<< REPLACE-STATE {event['url'], event['title']}")
-        self.send_json(dict(event, type='replace_state'))
+    def visit(self, event):
+        log.debug(f"<<< VISIT {event['action']} {event['url']}")
+        self.send_json(event)
 
     @classmethod
     def decode_json(cls, text_data):

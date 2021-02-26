@@ -202,21 +202,12 @@ class Component:
         self._destroy_sent = True
         send_to_channel(self._channel_name, 'remove', id=self.id)
 
-    def _send_redirect(self, url,  *args, **kwargs):
-        url = resolve_url(url, *args, **kwargs)
+    def visit(self, url: str, action: str = 'advance', **kwargs):
+        url = resolve_url(url, **kwargs)
         if self._channel_name:
-            send_to_channel(self._channel_name, 'push_state', url=url)
-            self.freeze()
-        else:
+            send_to_channel(self._channel_name, 'visit', url=url, action=action)
+        elif action == 'advance':
             self._redirected_to = url
-
-    def _send_replace_state(self, url, _title=None, *args, **kwargs):
-        url = resolve_url(url, *args, **kwargs)
-        if self._channel_name:
-            send_to_channel(
-                self._channel_name, 'replace_state',
-                title=_title, url=url
-            )
 
     def _send_parent(self, _name, **kwargs):
         if self._parent_id:

@@ -96,25 +96,16 @@ reactor_channel.on 'close', ->
     el.classList.add('reactor-disconnected')
 
 
-reactor_channel.on 'message', ({type, title, id, html_diff, url, component_types}) ->
+reactor_channel.on 'message', ({type, id, html_diff, url, action, component_types}) ->
   console.log '<<<', type.toUpperCase(), id or url or component_types
-  if type is 'components'
-    declare_components(component_types)
-  else if type is 'redirect'
-    window.location.assign url
-  else if type is 'push_state'
-    reactor.push_state url
-  else if type is 'replace_state'
-    history.replaceState {}, (title or document.title), url
-  else
-    el = document.getElementById(id)
-    if el?
-      if type is 'render'
-        el.apply_diff(html_diff)
-      else if type is 'remove'
-        window.requestAnimationFrame ->
-          el.remove()
-
+  switch type
+    when 'components' then declare_components(component_types)
+    when 'visit' then reactor.visit url, action: action
+    when 'render'
+      document.getElementById(id)?.apply_diff?(html_diff)
+    when 'remove'
+      window.requestAnimationFrame ->
+        document.getElementById(id)?.remove()
 
 TRANSPILER_CACHE = {}
 
@@ -330,11 +321,18 @@ reactor.debounce = (delay_name, delay) -> (f) -> (...args) ->
   clearTimeout _timeouts[delay_name]
   _timeouts[delay_name] = setTimeout (=> f(...args)), delay
 
-reactor.push_state = (url) ->
-  if Turbolinks?
-    Turbolinks.visit url
-  else
+reactor.visit = (url, options) ->
+  try
+    switch options.action
+      when 'replace' then window.history.replaceState {}, document.title, url
+      when 'advance'
+        if Turbo?
+          Turbo.visit url, options
+        else
+          window.history.pushState {}, document.title, url
+  catch
     window.location.assign url
+
 
 reactor_channel.open()
 
