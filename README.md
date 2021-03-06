@@ -18,7 +18,7 @@ Install reactor:
 pip install django-reactor
 ```
 
-Reacto makes use of `django-channels`, by default this one uses an InMemory channel layer which is not capable of a real broadcasting, so you might wanna use the Redis one, take a look here: [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html)
+Reactor makes use of `django-channels`, by default this one uses an InMemory channel layer which is not capable of a real broadcasting, so you might wanna use the Redis one, take a look here: [Channel Layers](https://channels.readthedocs.io/en/latest/topics/channel_layers.html)
 
 Add `reactor` and `channels` to your `INSTALLED_APPS` before the Django applications so channels can override the `runserver` command.
 
@@ -102,7 +102,7 @@ AUTO_BROADCAST = {
 
 ## Back-end APIs
 
-### Template tags and filters of `react` library
+### Template tags and filters of `reactor` library
 
 - `{% reactor_headers %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
 - `{% component 'x-component-name' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `Component.mount` method.
@@ -110,7 +110,7 @@ AUTO_BROADCAST = {
 - `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
 - `then`: Use as a shorthand for if, `{% if expression %}print-this{% endif %}` is equivalent to `{{ expresssion|then:'print-this' }}`.
 - `ifnot`: Use a shorthand for if not, `{% if not expression %}print-this{% endif %}` is equivalent to `{{ expresssion|ifnot:'print-this' }}, and can be concatenated with then, like in: `{{ expression|then:'positive'|ifnot:'negative' }}`
-- `eq`: Compares its arguments and returns `"yes"` or empty string, `{{ this_thing|qe:other_other|then:'print-this' }}`.
+- `eq`: Compares its arguments and returns `"yes"` or empty string, `{{ this_thing|eq:other_thing|then:'print-this' }}`.
 - `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
 - `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
 
@@ -160,15 +160,15 @@ The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]
   - `stop`: calls (`event.stopPropagation();`),
   - `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press.
   - `inlinejs`: allows you to write your custom JavaScript in the event handler.
-  - `debounce`: the bounces the event, it needs a name and the delay in milliseconds. Example: `@keypress.100.search.debounce='message'`.
+  - `debounce`: debounces the event, it needs a name and a delay in milliseconds. Example: `@keypress.100.search.debounce='message'`.
 - `event_name`: is the name of the message to be send to this component
 - The arguments can be completely omitted, or specified as a dictionary.
 
-When the arguments are omitted reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
+When the arguments are omitted, reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
 
 ### JS Hooks
 
-This are custom events triggered by reactor in different instants of the life cycle of the component.
+These are custom events triggered by reactor in different instants of the life cycle of the component.
 
 - `@reactor-init`: Triggered on any HTML element when the component is initialized.
 - `@reactor-added`: Triggered on any HTML element that is added to the DOM of the component.
@@ -208,7 +208,7 @@ Anatomy of a template: each component should be a [custom web component](https:/
 
 Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
 
-Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How this works? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
+Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How does this work? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
 
 Now let's write the behavior part of the component in `live.py`:
 
@@ -270,7 +270,7 @@ I made a TODO list app using models that signals from the model to the respectiv
 This example contains nested components and some more complex interactions than a simple counter, the app is in the `/tests/` directory.
 
 
-## Development & Contribution
+## Development & Contributing
 
 Clone the repo and create a virtualenv or any other contained environment, get inside the repo directory, build the development environment and the run tests.
 
@@ -281,7 +281,7 @@ make install
 make test
 ```
 
-If you wanna run the inside Django project that is used for testing do:
+If you want to run the included Django project used for testing do:
 
 ```bash
 make
