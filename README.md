@@ -170,10 +170,10 @@ When the arguments are omitted, reactor serializes the form where the current el
 
 These are custom events triggered by reactor in different instants of the life cycle of the component.
 
-- `@reactor-init`: Triggered on any HTML element when the component is initialized.
-- `@reactor-added`: Triggered on any HTML element that is added to the DOM of the component.
-- `@reactor-updated`: Triggered on any HTML element that is updated, after the update happens.
-- `@reactor-leave`: Triggered on the root element when the element had been removed from the DOM.
+- `onreactor-init`: Triggered on any HTML element when the component is initialized.
+- `onreactor-added`: Triggered on any HTML element that is added to the DOM of the component.
+- `onreactor-updated`: Triggered on any HTML element that is updated, after the update happens.
+- `onreactor-leave`: Triggered on the root element when the element had been removed from the DOM.
 
 ### Event handlers in the back-end
 
