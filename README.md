@@ -46,12 +46,24 @@ django.setup()
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from reactor.urls import websocket_urlpatterns
+from project_name.urls import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket': AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
 })
+```
+
+In your `project_name/urls.py`, add the following lines:
+
+```python
+from reactor.channels import ReactorConsumer
+
+# ...
+
+websocket_urlpatterns = [
+    path('__reactor__', ReactorConsumer),
+]
 ```
 
 Note: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
