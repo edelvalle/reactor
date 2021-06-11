@@ -225,7 +225,7 @@ Forwarding events to the back-end: Notice that for event binding in-line JavaScr
 Now let's write the behavior part of the component in `live.py`:
 
 ```python
-from reactor import Component
+from reactor.component import Component
 
 
 class XCounter(Component):
