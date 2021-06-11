@@ -104,7 +104,7 @@ AUTO_BROADCAST = {
 
 ### Template tags and filters of `reactor` library
 
-- `{% reactor_headers %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
+- `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
 - `{% component 'x-component-name' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `Component.mount` method.
 - `tojson`: Takes something and renders it in JSON, the `ReactorJSONEncoder` extends the `DjangoJSONEncoder` it serializes a `Model` instance to its `id` and a `QuerySet` as a list of `ids`.
 - `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
