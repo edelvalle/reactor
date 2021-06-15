@@ -149,7 +149,7 @@ AUTO_BROADCAST = {
 Look at this:
 
 ```html
-  <button @click.prevent="submit">Submit</button?>
+  <button @click.prevent="submit">Submit</button>
 ```
 
 The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]"`:
@@ -180,7 +180,7 @@ These are custom events triggered by reactor in different instants of the life c
 Given:
 
 ```html
-<button @click="inc {amount: 2}">Increment</button?>
+<button @click="inc {amount: 2}">Increment</button>
 ```
 
 You will need an event handler in that component in the back-end:
