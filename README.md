@@ -46,12 +46,24 @@ django.setup()
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from reactor.urls import websocket_urlpatterns
+from project_name.urls import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket': AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
 })
+```
+
+In your `project_name/urls.py`, add the following lines:
+
+```python
+from reactor.channels import ReactorConsumer
+
+# ...
+
+websocket_urlpatterns = [
+    path('__reactor__', ReactorConsumer),
+]
 ```
 
 Note: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
@@ -104,7 +116,7 @@ AUTO_BROADCAST = {
 
 ### Template tags and filters of `reactor` library
 
-- `{% reactor_headers %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
+- `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
 - `{% component 'x-component-name' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `Component.mount` method.
 - `tojson`: Takes something and renders it in JSON, the `ReactorJSONEncoder` extends the `DjangoJSONEncoder` it serializes a `Model` instance to its `id` and a `QuerySet` as a list of `ids`.
 - `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
@@ -196,7 +208,7 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<div {% tag_header %}>
+<div {% header %}>
   {{ amount }}
   <button @click="inc">+</button>
   <button @click="dec">-</button>
@@ -213,7 +225,7 @@ Forwarding events to the back-end: Notice that for event binding in-line JavaScr
 Now let's write the behavior part of the component in `live.py`:
 
 ```python
-from reactor import Component
+from reactor.component import Component
 
 
 class XCounter(Component):
