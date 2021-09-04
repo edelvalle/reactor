@@ -208,7 +208,7 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<div {% header %}>
+<div {% reactor_header %}>
   {{ amount }}
   <button @click="inc">+</button>
   <button @click="dec">-</button>
