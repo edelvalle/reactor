@@ -82,7 +82,7 @@ In the templates where you want to use reactive components you have to load the 
 </html>
 ```
 
-Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and then all is loaded they are executed.
+Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and when all is loaded they are executed.
 
 ## Settings:
 
