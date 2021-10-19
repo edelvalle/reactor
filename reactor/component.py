@@ -108,11 +108,12 @@ class Component:
     ):
         klass = cls._all[_tag_name]
         if not _parent_id:
-            kwargs = dict(klass._constructor_model.parse_obj(kwargs), id=id)
+            kwargs = dict(klass._constructor_model.parse_obj(kwargs))
         return klass(
             request=request,
             _parent_id=_parent_id,
             _root_component=_root_component,
+            id=id,
             **kwargs
         )
 
