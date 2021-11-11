@@ -1,94 +1,111 @@
+import typing as t
+
 from django import template
-from django.template.base import Token, Parser, Node
 from django.core.signing import Signer
+from django.template.base import Node, Parser, Token
 from django.utils.html import format_html
 
-
-from .. import json
 from ..component import Component
+from ..event_transpiler import transpile
+from ..repository import ComponentRepository
 
 register = template.Library()
 
 
-@register.inclusion_tag('reactor_header.html')
+@register.inclusion_tag("reactor_header.html")
 def reactor_header():
-    return {}
+    return {
+        "components": [
+            {"tag_name": component._tag_name, "extends": component._extends}
+            for component in Component._all.values()
+        ]
+    }
 
 
 @register.simple_tag(takes_context=True)
 def tag_header(context):
-    component = context['this']
+    component = context["this"]
     return format_html(
-        'is="{tag_name}" id="{id}" state="{state}"',
+        'is="{tag_name}" '
+        'id="{id}" '
+        'data-name="{name}" '
+        'data-state="{state}"'
+        "reactor-component",
         tag_name=component._tag_name,
         id=component.id,
-        state=Signer().sign(component._state_json),
+        name=component._name,
+        state=Signer().sign(component.json(exclude={"reactor"})),
     )
 
 
 @register.simple_tag(takes_context=True)
-def component(context, _name, id=None, **kwargs):
-    parent = context.get('this')  # type: Component
-    if parent:
-        component = parent._root_component.get_or_create(
-            _name,
-            _parent_id=parent.id,
-            id=id,
-            **kwargs
-        )
-    else:
-        component = Component._build(
-            _name,
-            request=context['request'],
-            id=id,
-            **kwargs
-        )
-    return component._render()
+def component(context, _name, **kwargs):
+    parent: t.Optional[Component] = context.get("this")
+    parent_id = parent.id if parent else None
+
+    repo: ComponentRepository = context.get(
+        "reactor_repository",
+        ComponentRepository(user=context.get("user")),
+    )
+
+    component = repo.build(_name, state=kwargs, parent_id=parent_id)
+    return component.render(repo) or ""
+
+
+@register.simple_tag(takes_context=True)
+def on(context, _event_and_modifiers, _command, **kwargs):
+    component: t.Optional[Component] = context.get("this")
+
+    assert component, "Can't find a component in this context"
+    handler = getattr(component, _command, None)
+    assert handler, f"Missing handler: {component._name}.{_command}"
+    assert callable(handler), f"Not callable: {component._name}.{_command}"
+
+    event, code = transpile(_event_and_modifiers, _command, kwargs)
+    return format_html('{event}="{code}"', event=event, code=code)
+
+
+@register.filter(name="str")
+def to_string(value):
+    return str(value)
 
 
 @register.filter
 def concat(value, arg):
-    return f'{value}-{arg}'
+    return f"{value}{arg}"
 
 
-@register.filter()
-def tojson(value, indent=None):
-    return json.dumps(value, indent=indent)
-
-
-@register.filter
-def eq(value, other):
-    if value == other:
-        return 'yes'
-    else:
-        return ''
-
-
-@register.filter
-def then(value, true_result):
-    if value:
-        return true_result
-    else:
-        return ''
-
-
-@register.filter
-def ifnot(value, false_result):
-    if not value:
-        return false_result
-    else:
-        return ''
+# Shortcuts and helpers
 
 
 @register.tag()
 def cond(parser: Parser, token: Token):
-    dict_expression = token.contents[len('cond '):]
+    """Prints some text conditionally
+
+        ```html
+        {% cond {'works': True, 'does not work': 1 == 2} %}
+        ```
+    Will output 'works'.
+    """
+    dict_expression = token.contents[len("cond ") :]
     return CondNode(dict_expression)
 
 
-@register.tag(name='class')
+@register.tag(name="class")
 def class_cond(parser: Parser, token: Token):
-    dict_expression = token.contents[len('class '):]
+    """Prints classes conditionally
+
+    ```html
+    <div {% class {'btn': True, 'loading': loading, 'falsy': 0} %}></div>
+    ```
+
+    If `loading` is `True` will print:
+
+    ```html
+    <div class="btn loading"></div>
+    ```
+    """
+    dict_expression = token.contents[len("class ") :]
     return ClassNode(dict_expression)
 
 
@@ -98,11 +115,7 @@ class CondNode(Node):
 
     def render(self, context):
         terms = eval(self.dict_expression, context.flatten())
-        return ' '.join(
-            term
-            for term, ok in terms.items()
-            if ok
-        )
+        return " ".join(term for term, ok in terms.items() if ok)
 
 
 class ClassNode(CondNode):

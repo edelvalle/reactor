@@ -8,9 +8,8 @@
         placeholder="What needs to be done?"
         name="new_item"
         value="{{ this.new_item }}"
-        :override
         autofocus
-        @keypress.enter="add"
+        {% on 'keypress.enter' 'add' %}
       >
     </header>
     <!-- This section should be hidden by default and shown when there are todos -->
@@ -21,15 +20,15 @@
           class="toggle-all"
           type="checkbox"
           name="toggle_all"
-          {{ this.all_items_are_completed|then:'checked' }}
-          @change="toggle_all"
+          {% cond {"checked": all_items_are_completed} %}
+          {% on 'change' 'toggle_all' %}
         >
         <label for="toggle-all">Mark all as complete</label>
         <ul class="todo-list">
           <!-- These are here just to show the structure of the list items -->
           <!-- List items should get the class `editing` when editing and `completed` when marked as completed -->
           {% for item in this.items %}
-            {% component 'x-todo-item' id=item.id item=item showing=this.showing %}
+            {% component 'XTodoItem' id='item-'|concat:item.id item=item showing=this.showing %}
           {% endfor %}
         </ul>
       {% endif %}
@@ -38,16 +37,14 @@
     {% if this.items %}
       <footer class="footer">
 
-        {% with counter_id=this.id|concat:'counter' %}
-          {% component 'x-todo-counter' id=counter_id items=this.items %}
-        {% endwith %}
+        {% component 'XTodoCounter' id='counter' items=this.items %}
 
         <!-- Remove this if you don't implement routing -->
         <ul class="filters">
           <li>
             <a
               {% if this.showing == 'all' %}class="selected"{% endif %}
-              @click.prevent="show {showing: 'all'}"
+              {% on 'click.prevent' 'show' showing='all' %}
             >
               All
             </a>
@@ -55,7 +52,7 @@
           <li>
             <a
               {% if this.showing == 'active' %}class="selected"{% endif %}
-              @click.prevent="show {showing: 'active'}"
+              {% on 'click.prevent' 'show' showing='active' %}
             >
               Active
             </a>
@@ -63,14 +60,14 @@
           <li>
             <a
               {% if this.showing == 'completed' %}class="selected"{% endif %}
-              @click="show {showing: 'completed'}"
+              {% on 'click.prevent' 'show' showing='completed' %}
             >
               Completed
             </a>
           </li>
         </ul>
         <!-- Hidden if no completed items are left ↓ -->
-        <button class="clear-completed" @click="clear_completed">Clear completed</button>
+        <button class="clear-completed" {% on 'click' 'clear_completed' %}>Clear completed</button>
       </footer>
     {% endif %}
 

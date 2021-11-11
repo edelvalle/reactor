@@ -1,29 +1,25 @@
 {% load reactor %}
 <div {% tag_header %}>
-  <li class="
-      {{ item.completed|then:'completed' }}
-      {{ editing|then:'editing' }}
-      {{ is_visible|ifnot:'hidden' }}
-    "
+  <li
+    {% class {"completed": item.completed, "editing": editing, "hidden": not is_visible} %}
   >
     <div class="view">
       <input
         class="toggle"
         type="checkbox"
         name="completed"
-        {{ item.completed|then:'checked' }}
-        @change="completed"
+        {% cond {"checked": item.completed} %}
+        {% on 'change' 'completed' %}
       >
-      <label @click="toggle_editing">{{ item.text }}</label>
-      <button @click="destroy" class="destroy"></button>
+      <label {% on 'click' 'toggle_editing' %}>{{ item.text }}</label>
+      <button {% on 'click' 'delete' %} class="destroy"></button>
     </div>
     <input
       class="edit"
       name="text"
       value="{{ item.text }}"
-      @blur="save"
-      @keypress.enter="save"
-      {{ editing|then:':focus' }}
+      {% on 'blur' 'save' %}
+      {% on 'keypress.enter' 'save' %}
     >
   </li>
 </div>

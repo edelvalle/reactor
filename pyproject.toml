@@ -1,29 +1,7 @@
-[tool.poetry]
-name = "django-reactor"
-version = "2.2.1b"
-description = "Brings LiveView from Phoenix framework into Django"
-authors = ["Eddy Ernesto del Valle Pino <eddy@edelvalle.me>"]
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/edelvalle/reactor"
-keywords = ["django", "python", "javascript", "fullstack", "liveview"]
-packages = [{include = "reactor"}]
-include = ["reactor/static/reactor/reactor.js"]
+[tool.isort]
+profile = "black"
+line_length = 80
 
-[tool.poetry.dependencies]
-python = ">=3.6,<4"
-channels = ">=3.0.0,<3.1"
-orjson = ">=3,<4"
-pydantic = ">=1.5"
-
-[tool.poetry.dev-dependencies]
-flake8 = "^3.8.4"
-pytest-django = "^4.0.0"
-pytest-asyncio = "^0.14.0"
-whitenoise = "^5.2.0"
-uvicorn = {extras = ["standard"], version = "^0.12.2"}
-splinter = {extras = ["django"], version = "^0.14.0"}
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.black]
+line-length = 80
+target-version = ['py36']

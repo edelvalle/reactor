@@ -1,17 +1,20 @@
 from django.db.transaction import atomic
+from pydantic import Field
+
 from reactor.component import Component
+from reactor.types import Model, QuerySet
 
 from .models import Item
 
 
 class XTodoList(Component):
-    template_name = 'todo/list.html'
+    _template_name = "todo/list.html"
 
-    def __init__(self, showing='all', new_item='', **kwargs):
-        super().__init__(**kwargs)
-        self.showing = showing
-        self.new_item = new_item
-        self._subscribe('item.new')
+    showing: str = "all"
+    new_item: str = ""
+
+    def mounted(self):
+        self.reactor.subscribe("item.new")
 
     @property
     def items(self):
@@ -24,14 +27,14 @@ class XTodoList(Component):
     @atomic
     def add(self, new_item: str):
         Item.objects.create(text=new_item)
-        self.new_item = ''
+        self.new_item = ""
 
     def show(self, showing: str):
         self.showing = showing
 
     @atomic
-    def toggle_all(self, toggle_all: bool):
-        self.items.update(completed=toggle_all)
+    def toggle_all(self, toggle_all: bool = False):
+        self.reactor.redirect_to("/to-index")
 
     @atomic
     def clear_completed(self):
@@ -39,38 +42,39 @@ class XTodoList(Component):
 
 
 class XTodoCounter(Component):
-    template_name = 'todo/counter.html'
+    _template_name = "todo/counter.html"
 
-    def __init__(self, items=None, **kwargs):
-        super().__init__(**kwargs)
-        self.items = items or Item.objects.all()
-        self._subscribe('item')
+    items: QuerySet[Item] = Field(default_factory=Item.objects.all)
+
+    def mounted(self):
+        self.reactor.subscribe("item")
 
 
 class XTodoItem(Component):
-    template_name = 'todo/item.html'
+    _template_name = "todo/item.html"
 
-    def __init__(self, item=None, editing=False, showing='all', **kwargs):
-        super().__init__(**kwargs)
-        self.editing = editing
-        self.showing = showing
-        self.item = item or Item.objects.filter(id=self.id).first()
+    item: Model[Item]
+    editing: bool = False
+    showing: str = "all"
+
+    def mounted(self):
         if self.item:
-            self._subscribe(f'item.{self.item.id}')
+            self.reactor.subscribe(f"item.{self.item.id}")
         else:
-            super().destroy()
+            self.destroy()
 
+    @property
     def is_visible(self):
         return (
-            self.showing == 'all' or
-            self.showing == 'completed' and self.item.completed or
-            self.showing == 'active' and not self.item.completed
+            self.showing == "all"
+            or (self.showing == "completed" and self.item.completed)
+            or (self.showing == "active" and not self.item.completed)
         )
 
     @atomic
-    def destroy(self):
+    def delete(self):
         self.item.delete()
-        super().destroy()
+        self.destroy()
 
     @atomic
     def completed(self, completed: bool = False):
@@ -80,6 +84,8 @@ class XTodoItem(Component):
     def toggle_editing(self):
         if not self.item.completed:
             self.editing = not self.editing
+        if self.editing:
+            self.focus_on(f"#{self.id} input[name=text]")
 
     @atomic
     def save(self, text):

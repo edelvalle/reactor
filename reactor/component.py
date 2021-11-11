@@ -1,239 +1,91 @@
 import difflib
-from uuid import uuid4
 from functools import reduce
+from uuid import uuid4
 
-from django.http import HttpRequest
 from django.contrib.auth.models import AnonymousUser
+from django.db import models
 from django.shortcuts import resolve_url
-from django.template.loader import get_template, select_template
+from django.template import loader
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.utils.functional import cached_property
+from pydantic import BaseModel, validate_arguments
+from pydantic.fields import Field
 
 try:
     from hmin.base import html_minify
 except ImportError:
+
     def html_minify(html):
         return html
 
+
 from . import settings
-from . import json
-from .utils import send_to_channel, get_model
 
 
-class RootComponent(dict):
-
-    def __init__(self, request):
-        super().__init__()
-        self._request = request
-
-    @cached_property
-    def _channel_name(self):
-        return self._request.get('channel_name')
-
-    def get_or_create(self, _name, _parent_id=None, id=None, **state):
-        id = str(id or '')
-        kwargs = dict(
-            request=self._request,
-            id=id,
-            _root_component=self,
-            _parent_id=_parent_id,
-            **state
-        )
-        component: Component = self.get(id)
-        if component:
-            component.__init__(**kwargs)
-        else:
-            component = Component._build(_name, **kwargs)
-            self[component.id] = component
-        return component
-
-    def pop(self, id, default=None):
-        return super().pop(id, default)
-
-    def dispatch_user_event(self, id, name, args):
-        component: Component = self.get(id)
-        if component:
-            return component._dispatch(name, args)
-        else:
-            send_to_channel(self._channel_name, 'remove', id=id)
-
-    def propagate_update(self, event):
-        origin = event['origin']
-        for component in list(self.values()):
-            if origin in component._subscriptions:
-                component = component._clone()
-                self[component.id] = component
-                html_diff = component._render_diff()
-                yield {'id': component.id, 'html_diff': html_diff}
-
-
-class Component:
-    template_name = ''
-    template = None
-    extends = 'div'
-    _all = {}
-
-    def __init_subclass__(cls, name=None, public=True):
-        if public:
-            name = name or cls.__name__
-            name = ''.join([('-' + c if c.isupper() else c) for c in name])
-            name = name.strip('-').lower()
-            cls._all[name] = cls
-            cls._tag_name = name
-
-        cls._models = {}
-        for attr_name in dir(cls):
-            attr = getattr(cls, attr_name)
-            if (not attr_name.startswith('_')
-                    and attr_name.islower()
-                    and callable(attr)
-                    and not getattr(attr, 'private', False)):
-                cls._models[attr_name] = get_model(attr, ignore=['self'])
-
-        cls._constructor_model = get_model(cls)
-        cls._constructor_params = set(
-            cls._constructor_model.schema()['properties']
-        )
-        return super().__init_subclass__()
-
-    @classmethod
-    def _build(
-        cls,
-        _tag_name,
-        request,
-        id: str = None,
-        _parent_id=None,
-        _root_component=None,
-        **kwargs
-    ):
-        klass = cls._all[_tag_name]
-        if not _parent_id:
-            kwargs = dict(klass._constructor_model.parse_obj(kwargs))
-        return klass(
-            request=request,
-            _parent_id=_parent_id,
-            _root_component=_root_component,
-            id=id,
-            **kwargs
-        )
-
-    def __init__(
-        self,
-        request,
-        id: str = None,
-        _parent_id: str = None,
-        _root_component: RootComponent = None,
-        _last_sent_html: list = None,
-        **kwargs
-    ):
-        self.request = request
-        self.id = id or uuid4().hex
-        self._subscriptions = set()
-        self._parent_id = _parent_id
-        self._destroy_sent = False
+class ReactorMeta:
+    def __init__(self, user=None, channel_name=None, parent_id=None):
+        self.user = user or AnonymousUser()
+        self.channel_name = channel_name
+        self.parent_id = parent_id
+        self._destroyed = False
         self._is_frozen = False
         self._redirected_to = None
-        self._last_sent_html = _last_sent_html or []
-        if _root_component is None:
-            _root_component = RootComponent(request)
-        self._root_component = _root_component
+        self._last_sent_html = []
+        self._template = None
+        self._subscriptions = set()
+        self._messages_to_send: list[tuple(str, str, dict)] = []
 
-    @cached_property
-    def user(self):
-        return (
-            getattr(self.request, 'user', None) or
-            self.request.get('user') or
-            AnonymousUser()
-        )
-
-    def _clone(self):
-        return type(self)(
-            request=self.request,
-            _parent_id=self._parent_id,
-            _root_component=self._root_component,
-            _last_sent_html=self._last_sent_html,
-            **self._state
-        )
-
-    @property
-    def _state_json(self):
-        if self._parent_id:
-            return json.dumps({'id': self.id})
-        else:
-            return self._constructor_model(**self._state).json()
-
-    @property
-    def _state(self):
-        state = {
-            name: value
-            for name, value in vars(self).items()
-            if name in self._constructor_params
-        }
-        return state | {'id': self.id}
-
-    def _subscribe(self, *room_names):
-        for room_name in room_names:
-            if room_name not in self._subscriptions:
-                self._subscriptions.add(room_name)
-                send_to_channel(
-                    self._channel_name,
-                    'subscribe',
-                    room_name=room_name
-                )
-
-    def _unsubscribe(self, room_name):
-        self._subscriptions.discard(room_name)
-
-    @cached_property
-    def _channel_name(self):
-        if isinstance(self.request, dict):
-            return self.request.get('channel_name')
-
-    def _dispatch(self, name, args=None):
-        model = self._models[name]
-        getattr(self, name)(**dict(model.parse_obj(args or {})))
-        return self._render_diff()
-
-    # State persistence & front-end communication
+    def destroy(self, component_id: str):
+        if not self._destroyed:
+            self._destroyed = True
+            self.send("remove", id=component_id)
 
     def freeze(self):
         self._is_frozen = True
 
-    def destroy(self):
-        self._destroy_sent = True
-        send_to_channel(self._channel_name, 'remove', id=self.id)
+    def redirect_to(self, to, **kwargs):
+        self._redirect(to, kwargs)
 
-    def visit(self, url: str, action: str = 'advance', **kwargs):
-        url = resolve_url(url, **kwargs)
-        if self._channel_name:
-            send_to_channel(self._channel_name, 'visit', url=url, action=action)
-        elif action == 'advance':
-            self._redirected_to = url
+    def replace_to(self, to, **kwargs):
+        self._redirect(to, kwargs, replace=True)
 
-    def _send_parent(self, _name, **kwargs):
-        if self._parent_id:
-            self._send(_name, id=self._parent_id, **kwargs)
+    def push_to(self, to, **kwargs):
+        self._push(to, kwargs)
 
-    def _send(self, _name, id=None, **kwargs):
-        send_to_channel(
-            self._channel_name,
-            'send_component',
-            name=_name,
-            state=dict(kwargs, id=id or self.id),
-        )
+    def _redirect(self, to, kwargs, replace: bool = False):
+        url = resolve_url(to, **kwargs)
+        self._redirected_to = url
+        if self.channel_name:
+            self.freeze()
+            self.send("redirect_to", url=url, replace=replace)
 
-    def _render_diff(self):
-        html = self._render().split()
-        if html and self._last_sent_html != html:
+    def _push(self, to, kwargs):
+        url = resolve_url(to, **kwargs)
+        self._redirected_to = url
+        if self.channel_name:
+            self.freeze()
+            self.send("push_page", url=url)
+
+    def subscribe(self, *channels):
+        self._subscriptions.update(channels)
+        for channel in channels:
+            self.send("subscribe", channel=channel)
+
+    def unsubscribe(self, *channels):
+        self._subscriptions = self._subscriptions - set(channels)
+
+    def render_diff(self, component, repository):
+        html = self.render(component, repository)
+        if html and self._last_sent_html != (html := html.split()):
             if settings.USE_HTML_DIFF:
                 diff = []
                 for x in difflib.ndiff(self._last_sent_html, html):
                     indicator = x[0]
-                    if indicator == ' ':
+                    if indicator == " ":
                         diff.append(1)
-                    elif indicator == '+':
+                    elif indicator == "+":
                         diff.append(x[2:])
-                    elif indicator == '-':
+                    elif indicator == "-":
                         diff.append(-1)
 
                 if diff:
@@ -243,64 +95,49 @@ class Component:
             self._last_sent_html = html
             return diff
 
-    def _render(self):
-        if self._is_frozen:
-            html = self._last_sent_html
-        elif self._destroy_sent:
-            html = ''
-        elif self._redirected_to:
-            html = (
-                f'<meta'
-                f' http-equiv="refresh"'
-                f' content="0; url={self._redirected_to}"'
-                f'>'
+    def render(self, component, repo):
+        html = None
+        if not self.channel_name and self._redirected_to:
+            html = format_html(
+                '<meta http-equiv="refresh" content="0; url={url}">',
+                url=self._redirected_to,
             )
-        else:
-            if isinstance(self.request, HttpRequest):
-                request = self.request
-            else:
-                request = None
-            template = self._get_template()
-            html = template.render(self._get_context(), request=request).strip()
+        elif not (self._is_frozen or self._redirected_to):
+            template = self._get_template(component._template_name)
+            context = self._get_context(component, repo)
+            html = template.render(context).strip()
 
-        if settings.USE_HMIN:
+        if html and settings.USE_HMIN:
             html = html_minify(html)
 
-        return mark_safe(html)
+        if html:
+            return mark_safe(html)
 
-    def _get_template(self):
-        if not self.template:
-            if isinstance(self.template_name, (list, tuple)):
-                self.template = select_template(self.template_name)
+    def _get_template(self, template_name):
+        if not self._template:
+            if isinstance(template_name, (list, tuple)):
+                self._template = loader.select_template(template_name)
             else:
-                self.template = get_template(self.template_name)
-        return self.template
+                self._template = loader.get_template(template_name)
+        return self._template
 
-    def _get_context(self):
+    def send(self, _topic, **kwargs):
+        if self.channel_name:
+            self.send_to(self.channel_name, _topic, **kwargs)
+
+    def send_to(self, _channel, _topic, **kwargs):
+        self._messages_to_send.append((_channel, _topic, kwargs))
+
+    def _get_context(self, component, repo):
         return dict(
             {
-                attr: getattr(self, attr)
-                for attr in dir(self)
-                if not attr.startswith('_')
+                attr: getattr(component, attr)
+                for attr in dir(component)
+                if not attr.startswith("_")
             },
-            this=self,
+            this=component,
+            reactor_repository=repo,
         )
-
-
-class AuthComponent(Component, public=False):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.user.is_authenticated:
-            self.destroy()
-
-
-class StaffComponent(AuthComponent, public=False):
-    def mount(self, *args, **kwargs):
-        if super().mount() and self.user.is_staff:
-            return True
-        else:
-            self.destroy()
 
 
 def compress_diff(diff, diff_item):
@@ -313,3 +150,102 @@ def compress_diff(diff, diff_item):
         else:
             diff.append(diff_item)
     return diff
+
+
+class Component(BaseModel):
+    _all = {}
+    _urls = {}
+    _name = ...
+    _extends = "div"
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            models.Model: lambda x: x.pk,
+            models.QuerySet: lambda qs: list(qs.values_list("pk", flat=True)),
+        }
+
+    def __init_subclass__(cls, name=None, public=True, template_name=None):
+        if public:
+            name = name or cls.__name__
+            cls._all[name] = cls
+            cls._name = name
+
+            name = "".join([("-" + c if c.isupper() else c) for c in name])
+            name = name.strip("-").lower()
+            cls._tag_name = "x-" + name
+
+        if template_name is not None:
+            cls._template_name = template_name
+
+        for attr_name in vars(cls):
+            attr = getattr(cls, attr_name)
+            if (
+                not attr_name.startswith("_")
+                and attr_name.islower()
+                and callable(attr)
+            ):
+                setattr(
+                    cls,
+                    attr_name,
+                    validate_arguments(
+                        config={"arbitrary_types_allowed": True}
+                    )(attr),
+                )
+
+        return super().__init_subclass__()
+
+    @classmethod
+    def _build(
+        cls,
+        _component_name,
+        state,
+        user=None,
+        channel_name=None,
+        parent_id=None,
+    ):
+        if _component_name not in cls._all:
+            raise ComponentNotFound(
+                f"Could not find requested component '{_component_name}'. "
+                f"Did you load the component?"
+            )
+        instance = cls._all[_component_name](
+            reactor=ReactorMeta(
+                user=user,
+                channel_name=channel_name,
+                parent_id=parent_id,
+            ),
+            **state,
+        )
+        instance.mounted()
+        return instance
+
+    # instance
+    id: str = Field(default_factory=lambda: f"rx-{uuid4()}")
+    reactor: ReactorMeta
+
+    def mounted(self):
+        ...
+
+    def mutation(self, channel):
+        ...
+
+    @property
+    def user(self):
+        return self.reactor.user
+
+    def destroy(self):
+        self.reactor.destroy(self.id)
+
+    def render(self, repo):
+        return self.reactor.render(self, repo)
+
+    def render_diff(self, repo):
+        return self.reactor.render_diff(self, repo)
+
+    def focus_on(self, selector):
+        return self.reactor.send("focus_on", selector=selector)
+
+
+class ComponentNotFound(LookupError):
+    pass

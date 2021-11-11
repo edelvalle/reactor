@@ -14,15 +14,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
-from reactor.channels import ReactorConsumer
+from django.urls import include, path
+
+from reactor.consumer import ReactorConsumer
 
 urlpatterns = [
-    path('', include('fision.todo.urls')),
+    path("", include("fision.todo.urls")),
     # path('', include('fision.frontend.urls')),
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
 ]
 
 websocket_urlpatterns = [
-    path('__reactor__', ReactorConsumer),
+    path("__reactor__", ReactorConsumer.as_asgi()),
 ]

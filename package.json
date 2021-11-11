@@ -1,0 +1,16 @@
+{
+  "name": "reactor",
+  "version": "1.0.0",
+  "description": "Brings LiveView from Phoenix framework into Django",
+  "main": "index.js",
+  "repository": "git@github.com:edelvalle/reactor.git",
+  "author": "Eddy Ernesto del Valle Pino <eddy@edelvalle.me>",
+  "license": "MIT",
+  "dependencies": {
+    "morphdom": "^2.6.1",
+    "reconnecting-websocket": "^4.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.13.9"
+  }
+}
