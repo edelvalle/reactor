@@ -2,11 +2,11 @@
 *.eggs/
 *.log
 *.map
+*.min.js
 *.sqlite3
 dist/
 __pycache__/
 .pytest_cache/
-reactor/static/reactor.min.*
 node_modules/*
 .coverage
 site/
