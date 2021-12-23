@@ -1,3 +1,5 @@
+from functools import reduce
+
 from django.contrib.auth.models import AnonymousUser
 
 from .component import Component
@@ -48,8 +50,19 @@ class ComponentRepository:
         # XXX: There is a list() here because the dict can change size during
         # iteration
         for component in list(self.components.values()):
-            if channel in component.reactor._subscriptions:
+            if channel in component._subscriptions:
                 yield component
+
+    @property
+    def subscriptions(self):
+        return reduce(
+            lambda a, b: a.union(b),
+            (
+                component._subscriptions
+                for component in list(self.components.values())
+            ),
+            set(),
+        )
 
     @property
     def messages_to_send(self):

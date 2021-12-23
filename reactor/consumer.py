@@ -65,18 +65,6 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def message_from_component(self, data):
         await getattr(self, f"component_{data['command']}")(**data["kwargs"])
 
-    async def component_subscribe(self, channel):
-        if channel not in self.subscriptions:
-            log.debug(f"::: SUBSCRIBE {self.channel_name} to {channel}")
-            self.subscriptions.add(channel)
-            await self.channel_layer.group_add(channel, self.channel_name)
-
-    async def component_unsubscribe(self, channel):
-        if channels in self.subscriptions:
-            log.debug(f"::: UNSUBSCRIBE {self.channel_name} to {channel}")
-            self.subscriptions.discard(channel)
-            await self.channel_layer.group_discard(channel, self.channel_name)
-
     async def component_remove(self, id):
         log.debug(f">>> REMOVE {id}")
         await self.send_command("remove", {"id": id})
@@ -145,6 +133,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({"command": command, "payload": payload})
 
     async def send_pending_messages(self):
+        await self.check_subscriptions()
         for channel, command, kwargs in self.repo.messages_to_send:
             await self.channel_layer.send(
                 channel,
@@ -154,3 +143,18 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                     "kwargs": kwargs,
                 },
             )
+
+    async def check_subscriptions(self):
+        subscriptions = self.repo.subscriptions
+
+        # new subscriptions
+        for channel in subscriptions - self.subscriptions:
+            log.debug(f"::: SUBSCRIBE {self.channel_name} to {channel}")
+            await self.channel_layer.group_add(channel, self.channel_name)
+
+        # remove subscriptions
+        for channel in self.subscriptions - subscriptions:
+            log.debug(f"::: UNSUBSCRIBE {self.channel_name} to {channel}")
+            await self.channel_layer.group_discard(channel, self.channel_name)
+
+        self.subscriptions = subscriptions

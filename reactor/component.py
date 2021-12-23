@@ -33,7 +33,6 @@ class ReactorMeta:
         self._redirected_to = None
         self._last_sent_html = []
         self._template = None
-        self._subscriptions = set()
         self._messages_to_send: list[tuple(str, str, dict)] = []
 
     def destroy(self, component_id: str):
@@ -66,14 +65,6 @@ class ReactorMeta:
         if self.channel_name:
             self.freeze()
             self.send("push_page", url=url)
-
-    def subscribe(self, *channels):
-        self._subscriptions.update(channels)
-        for channel in channels:
-            self.send("subscribe", channel=channel)
-
-    def unsubscribe(self, *channels):
-        self._subscriptions = self._subscriptions - set(channels)
 
     def render_diff(self, component, repository):
         html = self.render(component, repository)
