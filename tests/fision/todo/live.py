@@ -1,20 +1,19 @@
 from django.db.transaction import atomic
 from pydantic import Field
 
+from reactor.auto_broadcast import Action
 from reactor.component import Component
-from reactor.types import Model, QuerySet
+from reactor.fields import Model, QuerySet
 
 from .models import Item
 
 
 class XTodoList(Component):
     _template_name = "todo/list.html"
+    _subscriptions = {"item"}
 
     showing: str = "all"
     new_item: str = ""
-
-    def mounted(self):
-        self.reactor.subscribe("item.new")
 
     @property
     def items(self):
@@ -43,25 +42,27 @@ class XTodoList(Component):
 
 class XTodoCounter(Component):
     _template_name = "todo/counter.html"
+    _subscriptions = {"item"}
 
     items: QuerySet[Item] = Field(default_factory=Item.objects.all)
-
-    def mounted(self):
-        self.reactor.subscribe("item")
 
 
 class XTodoItem(Component):
     _template_name = "todo/item.html"
 
+    @property
+    def _subscriptions(self):
+        return {f"item.{self.item.id}"}
+
     item: Model[Item]
     editing: bool = False
     showing: str = "all"
 
-    def mounted(self):
-        if self.item:
-            self.reactor.subscribe(f"item.{self.item.id}")
-        else:
+    def mutation(self, channel, instance, action):
+        if action == Action.DELETED:
             self.destroy()
+        else:
+            self.item = instance
 
     @property
     def is_visible(self):
