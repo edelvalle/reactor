@@ -11,7 +11,8 @@ def transpile(event_and_modifiers: str, command: str, kwargs: dict):
     cache_key = f"{modifiers}.{command}.{kwargs}"
     code = CODE_CACHE.get(cache_key)
     if code is None:
-        modifiers.append("_reactor_code")
+        if not modifiers or modifiers[-1] != "inlinejs":
+            modifiers.append("_reactor_code")
         code = command
         stack = [kwargs]
         while modifiers:
@@ -38,6 +39,10 @@ class Modifiers:
     @staticmethod
     def _add_curly(code, stack=None):
         return "{" + code + "}"
+
+    @classmethod
+    def inlinejs(self, code, stack=None):
+        return code
 
     # Events
 
