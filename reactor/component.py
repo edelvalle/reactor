@@ -1,7 +1,9 @@
 import difflib
+import typing as t
 from functools import reduce
 from uuid import uuid4
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.db import models
 from django.shortcuts import resolve_url
@@ -23,8 +25,7 @@ from . import settings
 
 
 class ReactorMeta:
-    def __init__(self, user=None, channel_name=None, parent_id=None):
-        self.user = user or AnonymousUser()
+    def __init__(self, channel_name=None, parent_id=None):
         self.channel_name = channel_name
         self.parent_id = parent_id
         self._destroyed = False
@@ -196,7 +197,7 @@ class Component(BaseModel):
         return super().__init_subclass__()
 
     @classmethod
-    def _build(
+    def _new(
         cls,
         _component_name,
         state,
@@ -209,30 +210,57 @@ class Component(BaseModel):
                 f"Could not find requested component '{_component_name}'. "
                 f"Did you load the component?"
             )
-        instance = cls._all[_component_name](
+
+        # TODO: rename state to initial_state
+        instance = cls._all[_component_name].new(
             reactor=ReactorMeta(
-                user=user,
+                channel_name=channel_name,
+                parent_id=parent_id,
+            ),
+            user=user or AnonymousUser(),
+            **state,
+        )
+        return instance
+
+    @classmethod
+    def _rebuild(
+        cls,
+        _component_name,
+        state,
+        user=None,
+        channel_name=None,
+        parent_id=None,
+    ):
+        if _component_name not in cls._all:
+            raise ComponentNotFound(
+                f"Could not find requested component '{_component_name}'. "
+                f"Did you load the component?"
+            )
+
+        # TODO: rename state to initial_state
+        instance = cls._all[_component_name](
+            user=user or AnonymousUser(),
+            reactor=ReactorMeta(
                 channel_name=channel_name,
                 parent_id=parent_id,
             ),
             **state,
         )
-        instance.mounted()
+        instance.joined()
         return instance
 
-    # instance
+    # State
     id: str = Field(default_factory=lambda: f"rx-{uuid4()}")
+    user: t.Union[AnonymousUser, get_user_model()]
     reactor: ReactorMeta
 
-    def mounted(self):
+    @classmethod
+    def new(cls, **kwargs):
+        return cls(**kwargs)
+
+    def joined(self):
         ...
 
-    def mutation(self, channel):
-        ...
-
-    @property
-    def user(self):
-        return self.reactor.user
 
     def destroy(self):
         self.reactor.destroy(self.id)
