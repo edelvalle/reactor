@@ -253,6 +253,8 @@ class Component(BaseModel):
     def joined(self):
         ...
 
+    def mutation(self, channel, instance, action):
+        ...
 
     def destroy(self):
         self.reactor.destroy(self.id)

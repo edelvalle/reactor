@@ -1,18 +1,9 @@
 import inspect
-import logging
 from functools import wraps
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils.datastructures import MultiValueDict
-
-log = logging.getLogger("reactor")
-
-
-def broadcast(*names, **kwargs):
-    for name in names:
-        log.debug(f"<-> {name}")
-        send_to_group(name, "model_mutation", **kwargs)
 
 
 def on_commit(f):

@@ -1,8 +1,6 @@
 import json
 import logging
-from re import T
 
-import channels
 from channels.db import database_sync_to_async as db
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
@@ -10,8 +8,8 @@ from django.core.signing import Signer
 from django.http.response import HttpResponse
 from django.test import Client
 from django.utils.datastructures import MultiValueDict
-from django.utils.http import url_has_allowed_host_and_scheme
 
+from . import serializer
 from .repository import ComponentRepository
 from .utils import parse_request_data
 
@@ -107,16 +105,12 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
 
     async def model_mutation(self, data):
         channel = data["origin"]
-        no_interest_on_this_channel = True
+        instance = serializer.decode(data["instance"])
+        action = data["action"]
         for component in self.repo.components_subscribed_to(channel):
-            no_interest_on_this_channel = False
-            await db(component.mutation)(channel)
+            await db(component.mutation)(channel, instance, action)
             await self.send_render(component)
-
-        if no_interest_on_this_channel:
-            await self.component_unsubscribe(channel)
-        else:
-            await self.send_pending_messages()
+        await self.send_pending_messages()
 
     # Reply to frontned
 
