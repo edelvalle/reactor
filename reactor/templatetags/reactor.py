@@ -34,7 +34,7 @@ def tag_header(context):
         tag_name=component._tag_name,
         id=component.id,
         name=component._name,
-        state=Signer().sign(component.json(exclude={"reactor"})),
+        state=Signer().sign(component.json(exclude={"reactor", "user"})),
     )
 
 
@@ -48,7 +48,7 @@ def component(context, _name, **kwargs):
         ComponentRepository(user=context.get("user")),
     )
 
-    component = repo.build(_name, state=kwargs, parent_id=parent_id)
+    component = repo.new(_name, state=kwargs, parent_id=parent_id)
     return component.render(repo) or ""
 
 

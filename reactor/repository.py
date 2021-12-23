@@ -10,17 +10,27 @@ class ComponentRepository:
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
 
-    def build(self, name, state, parent_id=None) -> Component:
-        if (id := state.get("id")) and (component := self.components.get(id)):
-            component = component.copy(update=state)
-        else:
-            component = Component._build(
-                name,
-                state,
-                user=self.user,
-                channel_name=self.channel_name,
-                parent_id=parent_id,
-            )
+    def new(self, name, state, parent_id=None) -> Component:
+        component = Component._new(
+            name,
+            state,
+            user=self.user,
+            channel_name=self.channel_name,
+            parent_id=parent_id,
+        )
+        return self._register_component(component)
+
+    def join(self, name, state, parent_id=None) -> Component:
+        component = Component._rebuild(
+            name,
+            state,
+            user=self.user,
+            channel_name=self.channel_name,
+            parent_id=parent_id,
+        )
+        return self._register_component(component)
+
+    def _register_component(self, component):
         self.components[component.id] = component
         return component
 

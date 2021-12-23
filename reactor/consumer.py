@@ -41,7 +41,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def command_join(self, name, state):
         state = json.loads(Signer().unsign(state))
         log.debug(f"<<< JOIN {name} {state}")
-        component = await db(self.repo.build)(name, state)
+        component = await db(self.repo.join)(name, state)
         await self.send_render(component)
         await self.send_pending_messages()
 
