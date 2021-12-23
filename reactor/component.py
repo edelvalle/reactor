@@ -21,7 +21,7 @@ except ImportError:
         return html
 
 
-from . import settings
+from . import serializer, settings
 
 
 class ReactorMeta:
@@ -158,12 +158,13 @@ class Component(BaseModel):
     _urls = {}
     _name = ...
     _extends = "div"
+    _subscriptions = set()
 
     class Config:
         arbitrary_types_allowed = True
         json_encoders = {
-            models.Model: lambda x: x.pk,
-            models.QuerySet: lambda qs: list(qs.values_list("pk", flat=True)),
+            models.Model: lambda x: serializer.encode(x),
+            models.QuerySet: lambda qs: [x.pk for x in qs],
         }
 
     def __init_subclass__(cls, name=None, public=True, template_name=None):
