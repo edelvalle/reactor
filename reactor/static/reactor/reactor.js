@@ -3,9 +3,6 @@ import ReconnectingWebSocket from 'reconnecting-websocket'
 import boost from './reactor-boost'
 
 
-window.morphdom = morphdom
-
-
 // Connection
 
 class ServerConnection extends EventTarget {

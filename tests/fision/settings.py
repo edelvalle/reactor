@@ -18,8 +18,9 @@ up = os.path.dirname
 BASE_DIR = up(up(os.path.abspath(__file__)))
 
 
-REACTOR_AUTO_BROADCAST = True
-REACTOR_INCLUDE_TURBOLINKS = True
+REACTOR = {
+    "BOOST_PAGES": True,
+}
 
 
 # Quick-start development settings - unsuitable for production

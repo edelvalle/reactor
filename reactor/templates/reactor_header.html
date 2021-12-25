@@ -1,4 +1,5 @@
 {% load static %}
+<meta name="reactor-boost" data-enabled="{{ BOOST_PAGES|lower }}">
 {% for c in components %}
   <meta name="reactor-component" data-tag-name="{{ c.tag_name }}" data-extends="{{ c.extends }}">
 {% endfor %}

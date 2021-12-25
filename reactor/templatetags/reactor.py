@@ -5,6 +5,7 @@ from django.core.signing import Signer
 from django.template.base import Node, Parser, Token
 from django.utils.html import format_html
 
+from .. import settings
 from ..component import Component
 from ..event_transpiler import transpile
 from ..repository import ComponentRepository
@@ -18,7 +19,8 @@ def reactor_header():
         "components": [
             {"tag_name": component._tag_name, "extends": component._extends}
             for component in Component._all.values()
-        ]
+        ],
+        "BOOST_PAGES": settings.BOOST_PAGES,
     }
 
 

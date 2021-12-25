@@ -1,8 +1,12 @@
 
+const BOOST_PAGES = JSON.parse(document.querySelector("meta[name=reactor-boost]")?.dataset.enabled || "false")
+console.log("BOOST_PAGES", BOOST_PAGES)
 
 function boostAllLinks() {
-    for (let link of document.querySelectorAll("a[href]")) {
-        boostElement(link)
+    if (BOOST_PAGES) {
+        for (let link of document.querySelectorAll("a[href]")) {
+            boostElement(link)
+        }
     }
 }
 
@@ -11,15 +15,17 @@ function boostAllLinks() {
  * @param {HTMLElement} element
  */
 function boostElement(element) {
-    if (element.tagName?.toLowerCase() === "a" &&
-        element.hasAttribute("href") && !(
-            element.boosted ||
-            element.hasAttribute("onclick") ||
-            element.hasAttribute(":no-boost")
-        )
-    ) {
-        element.boosted = true
-        element.addEventListener("click", _load)
+    if (BOOST_PAGES) {
+        if (element.tagName?.toLowerCase() === "a" &&
+            element.hasAttribute("href") && !(
+                element.boosted ||
+                element.hasAttribute("onclick") ||
+                element.hasAttribute(":no-boost")
+            )
+        ) {
+            element.boosted = true
+            element.addEventListener("click", _load)
+        }
     }
 }
 
@@ -62,11 +68,15 @@ class HistoryCache {
     static currentPath = window.location.pathname + window.location.search
 
     static async load(url) {
-        this._saveCurrentPage()
-        console.log(url)
-        if (hasSameOriginAsDocument(url)) {
-            this.push(url)
-            await this.restoreFromCurrentPath()
+        if (BOOST_PAGES) {
+            this._saveCurrentPage()
+            console.log(url)
+            if (hasSameOriginAsDocument(url)) {
+                this.push(url)
+                await this.restoreFromCurrentPath()
+            } else {
+                location.assign(url)
+            }
         } else {
             location.assign(url)
         }
@@ -101,7 +111,7 @@ class HistoryCache {
             this.currentPath = path
         }
 
-        // I don't care if the page is restored or network
+        // I don't care if the page is restored or came from the network
         // This will pull the page from the server just in case of any change
 
         let response = await fetch(window.location.href)
@@ -169,7 +179,6 @@ window.addEventListener("load", () => {
 })
 
 export default {
-    boostAllLinks,
     boostElement,
     HistoryCache: HistoryCache,
 }

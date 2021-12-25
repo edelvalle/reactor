@@ -13,15 +13,19 @@ from django.utils.safestring import mark_safe
 from pydantic import BaseModel, validate_arguments
 from pydantic.fields import Field
 
-try:
-    from hmin.base import html_minify
-except ImportError:
+from . import serializer, settings
+
+if settings.USE_HMIN:
+    try:
+        from hmin.base import html_minify
+    except ImportError as e:
+        raise ImportError(
+            "If you enable REACTOR['USE_HMIN'] you need to install django-hmin"
+        ) from e
+else:
 
     def html_minify(html):
         return html
-
-
-from . import serializer, settings
 
 
 class ReactorMeta:
@@ -99,8 +103,7 @@ class ReactorMeta:
             context = self._get_context(component, repo)
             html = template.render(context).strip()
 
-        if html and settings.USE_HMIN:
-            html = html_minify(html)
+        html = html_minify(html)
 
         if html:
             return mark_safe(html)
@@ -162,8 +165,12 @@ class Component(BaseModel):
         if public:
             name = name or cls.__name__
             cls._all[name] = cls
+            # Component name
             cls._name = name
+            # Fully qualified name
+            cls._fqn = f"{cls.__module__}.{name}"
 
+            # Compote a valid HTML tag from the componet name
             name = "".join([("-" + c if c.isupper() else c) for c in name])
             name = name.strip("-").lower()
             cls._tag_name = "x-" + name

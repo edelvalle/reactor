@@ -1,30 +1,33 @@
 from django.conf import settings
 
+DEFAULT = {
+    "USE_HTML_DIFF": True,
+    "USE_HMIN": False,
+    "TRANSPILER_CACHE_SIZE": 1024,
+    "BOOST_PAGES": False,
+    "AUTO_BROADCAST": False,
+}
 
-def get(name, default=None):
-    return getattr(settings, f"REACTOR_{name}", default)
-
+REACTOR = DEFAULT | getattr(settings, "REACTOR", {})
 
 LOGIN_URL = settings.LOGIN_URL
-USE_HTML_DIFF = get("USE_HTML_DIFF", True)
-USE_HMIN = get("USE_HMIN", True)
-AUTO_BROADCAST = get("AUTO_BROADCAST", False)
-TRANSPILER_CACHE_SIZE = get("TRANSPILER_CACHE_SIZE", 1024)
+
+USE_HTML_DIFF = REACTOR["USE_HTML_DIFF"]
+USE_HMIN = REACTOR["USE_HMIN"]
+TRANSPILER_CACHE_SIZE = REACTOR["TRANSPILER_CACHE_SIZE"]
+BOOST_PAGES = REACTOR["BOOST_PAGES"]
+AUTO_BROADCAST = REACTOR["AUTO_BROADCAST"]
 
 
 if isinstance(AUTO_BROADCAST, bool):
     AUTO_BROADCAST = {
         # model_a
-        # model_a.del
-        # model_a.new
         "MODEL": AUTO_BROADCAST,
         # model_a.1234
         "MODEL_PK": AUTO_BROADCAST,
-        # model_b.1234.model_a_set
-        # model_b.1234.model_a_set.new
-        # model_b.1234.model_a_set.del
+        # model-b.9876.model-a-set
         "RELATED": AUTO_BROADCAST,
-        # model_b.1234.model_a_set
-        # model_a.1234.model_b_set
+        # model-b.9876.model-a-set
+        # model-a.1234.model-b-set
         "M2M": AUTO_BROADCAST,
     }
