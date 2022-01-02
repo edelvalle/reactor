@@ -1,5 +1,6 @@
 import json
 
+from django.core.serializers.json import DjangoJSONEncoder
 from lru import LRU as LRUDict
 
 from . import settings
@@ -33,7 +34,7 @@ CODE_CACHE = LRUDict(settings.TRANSPILER_CACHE_SIZE)
 class Modifiers:
     @staticmethod
     def _reactor_code(code, stack):
-        kwargs = json.dumps(stack.pop())
+        kwargs = json.dumps(stack.pop(), cls=DjangoJSONEncoder)
         return f"reactor.send(event.target, '{code}', {kwargs})"
 
     @staticmethod
