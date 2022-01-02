@@ -36,7 +36,7 @@ def tag_header(context):
         tag_name=component._tag_name,
         id=component.id,
         name=component._name,
-        state=Signer().sign(component.json(exclude={"reactor", "user"})),
+        state=Signer().sign(component.json(exclude=component._exclude_fields)),
     )
 
 

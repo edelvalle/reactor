@@ -8,6 +8,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.db import models
 from django.shortcuts import resolve_url
 from django.template import loader
+from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from pydantic import BaseModel, validate_arguments
@@ -99,11 +100,18 @@ class ReactorMeta:
                 url=self._redirected_to,
             )
         elif not (self._is_frozen or self._redirected_to):
-            template = self._get_template(component._template_name)
-            context = self._get_context(component, repo)
-            html = template.render(context).strip()
+            key = component._cache_key
+            if key is not None:
+                html = settings.cache.get(key)
 
-        html = html_minify(html)
+            if html is None:
+                template = self._get_template(component._template_name)
+                context = self._get_context(component, repo)
+                html = template.render(context).strip()
+                html = html_minify(html)
+
+            if key and component._cache_touch:
+                settings.cache.set(key, html, component._cache_time)
 
         if html:
             return mark_safe(html)
@@ -152,6 +160,12 @@ class Component(BaseModel):
     _urls = {}
     _name = ...
     _extends = "div"
+    _exclude_fields = {"user", "reactor"}
+
+    _cache_key: str = None
+    _cache_time = 300
+    _cache_touch = True
+
     _subscriptions = set()
 
     class Config:

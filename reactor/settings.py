@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.cache import InvalidCacheBackendError, caches
 
 DEFAULT = {
     "USE_HTML_DIFF": True,
@@ -31,3 +32,9 @@ if isinstance(AUTO_BROADCAST, bool):
         # model-a.1234.model-b-set
         "M2M": AUTO_BROADCAST,
     }
+
+
+try:
+    cache = caches["reactor"]
+except InvalidCacheBackendError:
+    cache = caches["default"]
