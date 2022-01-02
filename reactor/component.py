@@ -170,6 +170,7 @@ class Component(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        keep_untouched = (cached_property, ReactorMeta)
         json_encoders = {
             models.Model: lambda x: serializer.encode(x),
             models.QuerySet: lambda qs: [x.pk for x in qs],
