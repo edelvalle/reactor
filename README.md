@@ -116,7 +116,7 @@ REACTOR = {
 
 - `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~10Kb of minified JS, compressed with gz or brotli.
 - `{% component 'Component' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `XComponent.new` method that constructs the component instance.
-- `{% on 'click' 'event_handler' param1=1 param2=2 %}`: Binds an event handler with paramters to some event. [Look at Event binding in the front-end](#Event binding in the front-end)
+- `{% on 'click' 'event_handler' param1=1 param2=2 %}`: Binds an event handler with paramters to some event. [Look at Event binding in the front-end](#event-binding-in-the-front-end)
 - `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
 - `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
 
