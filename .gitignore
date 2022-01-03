@@ -4,6 +4,7 @@
 *.map
 *.min.js
 *.sqlite3
+.envrc
 dist/
 __pycache__/
 .pytest_cache/
