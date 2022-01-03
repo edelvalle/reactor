@@ -101,6 +101,8 @@ class ReactorMeta:
             )
         elif not (self._is_frozen or self._redirected_to):
             key = component._cache_key
+            key = key and f"{component._fdn}:{key}"
+
             if key is not None:
                 html = settings.cache.get(key)
 
@@ -159,13 +161,22 @@ class Component(BaseModel):
     _all = {}
     _urls = {}
     _name = ...
+
+    # HTML tag that this component extends
     _extends = "div"
+
+    # fields to exclude from the component state during serialization
     _exclude_fields = {"user", "reactor"}
 
+    # Cache: the render of the componet can be cached if you define a cache key
     _cache_key: str = None
+    # expiration time of the cache
     _cache_time = 300
+    # if True will refresh the cache on each render
     _cache_touch = True
 
+    # Subscriptions: you can define here which channels this component is
+    # subscribed to
     _subscriptions = set()
 
     class Config:
