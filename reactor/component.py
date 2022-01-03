@@ -161,6 +161,7 @@ class Component(BaseModel):
     _all = {}
     _urls = {}
     _name = ...
+    _template_name = ...
 
     # HTML tag that this component extends
     _extends = "div"
@@ -187,7 +188,7 @@ class Component(BaseModel):
             models.QuerySet: lambda qs: [x.pk for x in qs],
         }
 
-    def __init_subclass__(cls, name=None, public=True, template_name=None):
+    def __init_subclass__(cls, name=None, public=True):
         if public:
             name = name or cls.__name__
             cls._all[name] = cls
@@ -200,9 +201,6 @@ class Component(BaseModel):
             name = "".join([("-" + c if c.isupper() else c) for c in name])
             name = name.strip("-").lower()
             cls._tag_name = "x-" + name
-
-        if template_name is not None:
-            cls._template_name = template_name
 
         for attr_name in vars(cls):
             attr = getattr(cls, attr_name)
@@ -298,7 +296,7 @@ class Component(BaseModel):
     def render_diff(self, repo):
         return self.reactor.render_diff(self, repo)
 
-    def focus_on(self, selector):
+    def focus_on(self, selector: str):
         return self.reactor.send("focus_on", selector=selector)
 
 

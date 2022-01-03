@@ -10,7 +10,7 @@ This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow
 
 ## Installation and setup
 
-Reactor requires Python >=3.6.
+Reactor requires Python >=3.9.
 
 Install reactor:
 
@@ -46,24 +46,12 @@ django.setup()
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
-from project_name.urls import websocket_urlpatterns
+from reactor.urls import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
     'websocket': AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
 })
-```
-
-In your `project_name/urls.py`, add the following lines:
-
-```python
-from reactor.channels import ReactorConsumer
-
-# ...
-
-websocket_urlpatterns = [
-    path('__reactor__', ReactorConsumer),
-]
 ```
 
 Note: Reactor since version 2, autoloads any `live.py` file in your applications with the hope to find there Reactor Components so they get registered and can be instantiated.
@@ -72,11 +60,10 @@ In the templates where you want to use reactive components you have to load the 
 
 ```html
 {% load reactor %}
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-     ....
-     {% reactor_header %}
+    .... {% reactor_header %}
   </head>
   ...
 </html>
@@ -86,121 +73,203 @@ Don't worry if you put this as early as possible, the scripts are loaded using `
 
 ## Settings:
 
-- `REACTOR_AUTO_BROADCAST` (default: `False`), when enabled will activate listeners for every time a model is created, modified or deleted, and will broadcast a message related to that modification that you can subscribe to and use to refresh your components in real-time, you can fine tune what kind of notification you want to get by turning this in a dictionary, for example:
+Default settings of reactor are:
 
 ```python
-AUTO_BROADCAST = {
-    # model_a
-    # model_a.del
-    # model_a.new
-    'MODEL': True,
-
-    # model_a.1234
-    'MODEL_PK': True,
-
-    # model_b.1234.model_a_set
-    # model_b.1234.model_a_set.new
-    # model_b.1234.model_a_set.del
-    'RELATED': True,
-
-    # model_b.1234.model_a_set
-    # model_a.1234.model_b_set
-    'M2M': True,
+REACTOR = {
+    "USE_HTML_DIFF": True,
+    "USE_HMIN": False,
+    "TRANSPILER_CACHE_SIZE": 1024,
+    "BOOST_PAGES": False,
+    "AUTO_BROADCAST": False,
 }
 ```
 
-- `REACTOR_USE_HTML_DIFF` (default: `True`), when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth.
-- `REACTOR_USE_HMIN` (default: `False`), when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
+- `USE_HTML_DIFF`: when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth. If disabled it sends the full HTML content every time.
+
+- `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
+
+- `TRANSPILER_CACHE_SIZE`: how many transpiled event handlers will be kept in the LRU cache for quick transpilation.
+
+- `AUTO_BROADCAST`: Controls which signals are sent to `Componet.mutation` when a model is mutated.
+
+```python
+{
+    # model-a
+    'MODEL': True,
+
+    # model-a.1234
+    'MODEL_PK': True,
+
+    # model-b.9876.model-a-set
+    'RELATED': True,
+
+    # model-b.9876.model-a-set
+    # model-a.1234.model-b-set
+    'M2M': True,
+}
+```
 
 ## Back-end APIs
 
 ### Template tags and filters of `reactor` library
 
-- `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~5Kb of minified JS, compressed with gz or brotli.
-- `{% component 'x-component-name' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `Component.mount` method.
-- `tojson`: Takes something and renders it in JSON, the `ReactorJSONEncoder` extends the `DjangoJSONEncoder` it serializes a `Model` instance to its `id` and a `QuerySet` as a list of `ids`.
-- `tojson_safe`: Same as `tojson` but does not "HTML escapes" the output.
-- `then`: Use as a shorthand for if, `{% if expression %}print-this{% endif %}` is equivalent to `{{ expresssion|then:'print-this' }}`.
-- `ifnot`: Use a shorthand for if not, `{% if not expression %}print-this{% endif %}` is equivalent to `{{ expresssion|ifnot:'print-this' }}, and can be concatenated with then, like in: `{{ expression|then:'positive'|ifnot:'negative' }}`
-- `eq`: Compares its arguments and returns `"yes"` or empty string, `{{ this_thing|eq:other_thing|then:'print-this' }}`.
+- `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~10Kb of minified JS, compressed with gz or brotli.
+- `{% component 'Component' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `XComponent.new` method that constructs the component instance.
+- `{% on 'click' 'event_handler' param1=1 param2=2 %}`: Binds an event handler with paramters to some event. [Look at Event binding in the front-end](#Event binding in the front-end)
 - `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
 - `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
 
-### `reactor.component` module
+## Component live cycle
 
-- `Component`: This is the base component you should extend.
-- `AuthComponent`: Extends `Component` and ensures the user is logged in.
-- `broadcast(*names)`: Broadcasts the given names too all the system.
-- `on_commit(function)(*args, **kwargs)`: Calls `function` with the given arguments after database commit.
+### Initialization & Rendering
+
+This happens when in a "normal" template you include a component.
+
+```html
+{% component 'Component' param1=1 param2=2 %}
+```
+
+This passes those parameter there to `Component.new` that should return the component instance and then the component get's rendered in the template and is sent to the client.
+
+### Joins
+
+When the component arrives to the front-end if it is a root component (has no parent components) it "joins" the backend. Sends it's serialized state to the backend which rebuilds the component and calls `Component.joined`.
+
+After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was online while some change in the backend happened.
+
+### User events
+
+When a component or its parent has joined it can send user events to the client. Using the `on` template tag, this events are sent to the backend and then the componet is rendered again.
+
+### Subscriptions
+
+Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel. In case a mutation in a model occurs `Component.mutation` will be called passing `mutation(channel: str, instance: Model, action: reactor.auto_broadcast.Action)`.
+
+### Disconnection
+
+If the component is destroyed using the `Component.destroy` or just desapears from the front-end it is removed from the backend. If the the websocket closes all components in that connection are removed from the backend and the state of those componets stay just in the front-end in the seralized form awaiting for the front-end to join again.
 
 #### Component API
 
-- `__init__`: Is responsable for the component initialization, pass what ever you need to bootstrap the component state.
-- `template_name`: Set the name of the template of the component.
-- `extends`: Tag name HTML element the component extends.
-- `_subscribe(*names)`: Subscribes the current component to the given signal names, when one of those signals is broadcasted the component is refreshed, meaning that `mount` is called passing the result `serialize` and the component is re-rendered.
-- `visit(url, action='advance', **kwargs )`: Resolves the `url` using `**kwargs`, and depending on `action` the navigation will be `advance` (pushState) or `replace` (repalceState).
+Each component is a Pydantic model so it can serialize itself. I would advice not to mess with the `__init__` method.
+Instead use the class method `new` to create the instance.
+
+##### Rendering
+
+- `new`: Class method that responsable for the component initialization, pass what ever you need to bootstrap the component state and read from the database. Should return the component instance.
+- `_extends`: (default: `"div"`) Tag name HTML element the component extends. (Each component is a HTML5 component so it should extend some HTML tag)
+- `_template_name`: Contains the path of the template of the component.
+- `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
+
+##### Caching
+
+- `_cache_key`: (default: `None`) If defined as a string is used as a cache key for rendering.
+- `_cache_time`: (default: `300` seconds) The retention time of the cache.
+- `_cache_touch`: (default: `True`) If enabled everytime the component is rendered the cache is refreshed extending the retention time.
+
+#### Subscriptions
+
+- `_subscriptions`: (default: `set()`) Defines which channels is this component subscribed to.
+
+#### Actions
+
 - `destroy()`: Removes the component from the interface.
-- `_send(_name, id=None, **kwargs)`: Sends a message with the name `_name` to the component with `id`, if `id` is `None` the message is sent to the current component.
-- `_send_parent(_name, kwargs)`: Sends a message with the name `_name` to the parent component.
+- `focus_on(selector: str)`: Makes the front-end look for that `selector` and run `.focus()` on it.
+- `reactor.freeze()`: Prevents the component from being rendered again.
+- `reactor.redirect_to(to, **kwargs)`: Loads a new page and changes the url in the front-end.
+- `reactor.replace_to(to, **kwargs)`: Changes the current URL for another one.
+- `reactor.push_to(to, **kwargs)`: Like redirect, but instead of loading from the server pushes the content of the page via websocket.
+- `reactor.send(_channel: str, _topic: str, **kwargs)`: Sends a message over a channel.
 
 ## Front-end APIs
 
-- `reactor.visit(url, {action='advance'})`: if `action` is `advance`, calls `window.history.replaceState`, else tries to talk to [Turbo](https://turbo.hotwire.dev/handbook/drive#application-visits) or falls back to `window.history.pushState` or just `window.location.assign`.
-- `reactor.send(element, event_name, args)`: send the event `event_name` with the `args` parameters to the HTML `element`. It what is used to forward user event to the back-end.
-
-### Special HTMLElement attributes
-
-- `:keep`: Prevent the value of an input from being changed across renders.
-- `:override`: When an input is being updated and the user has the focus there reactor by default will not update the input field value (has if it had `:keep`), use `:override` to do otherwise.
-- `:once`: Reactor will render this element and children once, and never update it again.
-- `:focus`: Sets the focus on this element after an HTML update.
+- `reactor.send(element, name, args)`: Sends a reactor user event to `element`, where `name` is the event handler and `args` is a JS object containing the implicit arguments of the call.
 
 ### Event binding in the front-end
 
 Look at this:
 
 ```html
-  <button @click.prevent="submit">Submit</button>
+  <button {% on "click.prevent" "submit" %}>Submit</button>
 ```
 
-The format is `@<event>[.modifier][.modifier]="event_name[ {arg1: 1, arg2: '2'}]"`:
+Syntax: {% on <event-and-modifiers> <event-handler> [<event-handler-arguments-as-kwargs>] %}
+The format for event and modifiers is `@<event>[.modifier1][.modifier2][.modifier2-argument1][.modifier2-argument2]`
+
+Examples:
+
+- `{% on "click.ctrl" "decrement" %}>`: Clicking with Ctrl pressed calls "decrement".
+- `{% on "click" "increment" amount=1 %}>`: Clicking calls "increment" passing `amount=1` as argument.
+
+Misc:
 
 - `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
-- `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html):
-  - `prevent`: calls `event.preventDefault();`
-  - `stop`: calls (`event.stopPropagation();`),
-  - `enter`, `ctrl`, `alt`, `space`, expects any of those keys to be press.
-  - `inlinejs`: allows you to write your custom JavaScript in the event handler.
-  - `debounce`: debounces the event, it needs a name and a delay in milliseconds. Example: `@keypress.100.search.debounce='message'`.
-- `event_name`: is the name of the message to be send to this component
-- The arguments can be completely omitted, or specified as a dictionary.
+- `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html#Event-Modifiers):
 
-When the arguments are omitted, reactor serializes the form where the current element is or the current component if no form is found, and sends that as the arguments. The arguments will be always sent with the `id` of the current component as a parameter.
+  Available modifiers are:
 
-### JS Hooks
+  - `inlinejs`: takes the next "event handler" argument as literal JS code.
+  - `prevent`: calls `event.preventDefault()`
+  - `stop`: calls `event.StopPropagation()`
+  - `ctrl`, `alt`, `shift`, `meta`: continues processing the event if any of those keys is pressed
+  - `debounce`: debounces the event, it needs a name for the debounce group and a delay in milliseconds. Example: `keypress.debounce.100.search`.
+  - `key.<keycode>`: continues processing the event if the key with `keycode` is pressed
+  - `enter`: alias for `key.enter`
+  - `tab`: alias for `key.tab`
+  - `delete`: alias for `key.delete`
+  - `backspace`: alias for `key.backspace`
+  - `space`: alias for `key. `
+  - `up`: alias for `key.arrowup`
+  - `down`: alias for `key.arrowdown`
+  - `left`: alias for `key.arrowleft`
+  - `right`: alias for `key.arrowright`
 
-These are custom events triggered by reactor in different instants of the life cycle of the component.
+#### Event arguments
 
-- `onreactor-init`: Triggered on any HTML element when the component is initialized.
-- `onreactor-added`: Triggered on any HTML element that is added to the DOM of the component.
-- `onreactor-updated`: Triggered on any HTML element that is updated, after the update happens.
-- `onreactor-leave`: Triggered on the root element when the element had been removed from the DOM.
+Reactor sends the implicit arguments you pass on the `on` template tag, but also sends implicit arguments.
+The implicit arguments are taken from the `form` the element handling the event is in or from the whole component otherwise.
+
+Examples:
+
+Here any event inside that component will have the implicit argument `x` being send to the backend.
+
+```html
+<div {% tag-header %}>
+  <input name="x"/>
+  <button {% on "click" "submit" %}>Send</button>
+</div>
+```
+
+Here any `submit_x` will send `x`, and `submit_y` will send just `y`.
+
+```html
+<div {% tag-header %}>
+  <input name="x"/>
+  <button {% on "click" "submit_x" %}>Send</button>
+  <form>
+    <input name="y"/>
+    <button {% on "click.prevent" "submit_y" %}>Send</button>
+  </form>
+</div>
+```
 
 ### Event handlers in the back-end
 
 Given:
 
 ```html
-<button @click="inc {amount: 2}">Increment</button>
+<button {% on 'click 'inc' amount=2 %}>Increment</button>
 ```
 
 You will need an event handler in that component in the back-end:
 
 ```python
 def inc(self, amount: int):
-    pass
+    ...
 ```
+
+It is good if you annotate the signature so the types are validated and converted if they have to be.
 
 ## Simple example of a counter
 
@@ -208,11 +277,11 @@ In your app create a template `x-counter.html`:
 
 ```html
 {% load reactor %}
-<div {% reactor_header %}>
+<div {% tag_header %}>
   {{ amount }}
-  <button @click="inc">+</button>
-  <button @click="dec">-</button>
-  <button @click="set_to {amount: 0}">reset</button>
+  <button {% on 'click 'inc' %}>+</button>
+  <button {% on 'click 'dec' %}>-</button>
+  <button {% on 'click 'set_to' amount=0 %}">reset</button>
 </div>
 ```
 
@@ -229,11 +298,9 @@ from reactor.component import Component
 
 
 class XCounter(Component):
-    template_name = 'x-counter.html'
+    _template_name = 'x-counter.html'
 
-    def __init__(self, amount: int = 0, **kwargs):
-        super().__init__(**kwargs)
-        self.amount = amount
+    amount: int = 0
 
     def inc(self):
         self.amount += 1
@@ -247,7 +314,6 @@ class XCounter(Component):
 
 Let's now render this counter, expose a normal view that renders HTML, like:
 
-
 ```python
 def index(request):
     return render(request, 'index.html')
@@ -257,18 +323,16 @@ And the index template being:
 
 ```html
 {% load reactor %}
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-     ....
-     {% reactor_header %}
+    .... {% reactor_header %}
   </head>
   <body>
-    {% component 'x-counter' %}
+    {% component 'XCounter' %}
 
     <!-- or passing an initial state -->
-    {% component 'x-counter' amount=100 %}
-
+    {% component 'XCounter' amount=100 %}
   </body>
 </html>
 ```
@@ -280,7 +344,6 @@ Don't forget to update your `urls.py` to call the index view.
 I made a TODO list app using models that signals from the model to the respective channels to update the interface when something gets created, modified or deleted.
 
 This example contains nested components and some more complex interactions than a simple counter, the app is in the `/tests/` directory.
-
 
 ## Development & Contributing
 
