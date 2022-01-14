@@ -73,7 +73,7 @@ class ReactorMeta:
 
     def render_diff(self, component, repository):
         html = self.render(component, repository)
-        if html and self._last_sent_html != (html := html.split()):
+        if html and self._last_sent_html != (html := html.split(" ")):
             if settings.USE_HTML_DIFF:
                 diff = []
                 for x in difflib.ndiff(self._last_sent_html, html):
