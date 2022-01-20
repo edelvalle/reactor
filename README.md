@@ -144,7 +144,10 @@ When a component or its parent has joined it can send user events to the client.
 
 ### Subscriptions
 
-Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel. In case a mutation in a model occurs `Component.mutation` will be called passing `mutation(channel: str, instance: Model, action: reactor.auto_broadcast.Action)`.
+Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
+
+- In case a mutation in a model occurs `Component.mutation(channel: str, instance: Model, action: reactor.auto_broadcast.Action)` will be called.
+- In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
 
 ### Disconnection
 
@@ -171,6 +174,8 @@ Instead use the class method `new` to create the instance.
 #### Subscriptions
 
 - `_subscriptions`: (default: `set()`) Defines which channels is this component subscribed to.
+- `mutation(channel, instance, action)` Called when autobroadcast is enabled and a model you are subscribed to changes.
+- `notification(channel, **kwargs)` Called when `reactor.component.broadcast(channel, **kwargs)` is used to send an arbitrary notification to components.
 
 #### Actions
 

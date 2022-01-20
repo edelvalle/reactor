@@ -1,4 +1,5 @@
 import inspect
+import typing as t
 from functools import wraps
 
 from asgiref.sync import async_to_sync
@@ -16,13 +17,14 @@ def on_commit(f):
     return wrapper
 
 
-def send_to_group(_whom, type, **kwargs):
-    if _whom:
+def send_to(channel: t.Optional[str], type: str, **kwargs):
+    """Sends a message of `type` to the"""
+    if channel:
 
         @on_commit
         def send_message():
             async_to_sync(get_channel_layer().group_send)(
-                _whom, dict(type=type, origin=_whom, **kwargs)
+                channel, dict(type=type, channel=channel, **kwargs)
             )
 
         send_message()
