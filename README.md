@@ -71,6 +71,76 @@ In the templates where you want to use reactive components you have to load the 
 
 Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and when all is loaded they are executed.
 
+
+## Simple example of a counter
+
+In your app create a template `x-counter.html`:
+
+```html
+{% load reactor %}
+<div {% tag_header %}>
+  {{ amount }}
+  <button {% on 'click 'inc' %}>+</button>
+  <button {% on 'click 'dec' %}>-</button>
+  <button {% on 'click 'set_to' amount=0 %}">reset</button>
+</div>
+```
+
+Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of re-connection to the back-end.
+
+Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
+
+Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How does this work? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
+
+Now let's write the behavior part of the component in `live.py`:
+
+```python
+from reactor.component import Component
+
+
+class XCounter(Component):
+    _template_name = 'x-counter.html'
+
+    amount: int = 0
+
+    def recv_inc(self):
+        self.amount += 1
+
+    def recv_dec(self):
+        self.amount -= 1
+
+    def recv_set_to(self, amount: int):
+        self.amount = amount
+```
+
+Let's now render this counter, expose a normal view that renders HTML, like:
+
+```python
+def index(request):
+    return render(request, 'index.html')
+```
+
+And the index template being:
+
+```html
+{% load reactor %}
+<!DOCTYPE html>
+<html>
+  <head>
+    .... {% reactor_header %}
+  </head>
+  <body>
+    {% component 'XCounter' %}
+
+    <!-- or passing an initial state -->
+    {% component 'XCounter' amount=100 %}
+  </body>
+</html>
+```
+
+Don't forget to update your `urls.py` to call the index view.
+
+
 ## Settings:
 
 Default settings of reactor are:
@@ -81,6 +151,7 @@ REACTOR = {
     "USE_HMIN": False,
     "TRANSPILER_CACHE_SIZE": 1024,
     "BOOST_PAGES": False,
+    "RECEIVER_PREFIX": "recv_",
     "AUTO_BROADCAST": False,
 }
 ```
@@ -90,6 +161,8 @@ REACTOR = {
 - `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
 
 - `TRANSPILER_CACHE_SIZE`: how many transpiled event handlers will be kept in the LRU cache for quick transpilation.
+
+- `RECEIVER_PREFIX`: is the prefix of the event handlers of the components.
 
 - `AUTO_BROADCAST`: Controls which signals are sent to `Componet.mutation` when a model is mutated.
 
@@ -270,79 +343,11 @@ Given:
 You will need an event handler in that component in the back-end:
 
 ```python
-def inc(self, amount: int):
+def recv_inc(self, amount: int):
     ...
 ```
 
 It is good if you annotate the signature so the types are validated and converted if they have to be.
-
-## Simple example of a counter
-
-In your app create a template `x-counter.html`:
-
-```html
-{% load reactor %}
-<div {% tag_header %}>
-  {{ amount }}
-  <button {% on 'click 'inc' %}>+</button>
-  <button {% on 'click 'dec' %}>-</button>
-  <button {% on 'click 'set_to' amount=0 %}">reset</button>
-</div>
-```
-
-Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of re-connection to the back-end.
-
-Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
-
-Forwarding events to the back-end: Notice that for event binding in-line JavaScript is used on the event handler of the HTML elements. How does this work? When the increment button receives a click event `send(this, 'inc')` is called, `send` is a reactor function that will look for the parent custom component and will dispatch to it the `inc` message, or the `set_to` message and its parameters `{amount: 0}`. The custom element then will send this message to the back-end, where the state of the component will change and then will be re-rendered back to the front-end. In the front-end `morphdom` (just like in Phoenix LiveView) is used to apply the new HTML.
-
-Now let's write the behavior part of the component in `live.py`:
-
-```python
-from reactor.component import Component
-
-
-class XCounter(Component):
-    _template_name = 'x-counter.html'
-
-    amount: int = 0
-
-    def inc(self):
-        self.amount += 1
-
-    def dec(self):
-        self.amount -= 1
-
-    def set_to(self, amount: int):
-        self.amount = amount
-```
-
-Let's now render this counter, expose a normal view that renders HTML, like:
-
-```python
-def index(request):
-    return render(request, 'index.html')
-```
-
-And the index template being:
-
-```html
-{% load reactor %}
-<!DOCTYPE html>
-<html>
-  <head>
-    .... {% reactor_header %}
-  </head>
-  <body>
-    {% component 'XCounter' %}
-
-    <!-- or passing an initial state -->
-    {% component 'XCounter' amount=100 %}
-  </body>
-</html>
-```
-
-Don't forget to update your `urls.py` to call the index view.
 
 ## More complex components
 
