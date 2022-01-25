@@ -2,6 +2,7 @@ from functools import reduce
 
 from django.contrib.auth.models import AnonymousUser
 
+from . import settings
 from .component import Component
 from .utils import filter_parameters
 
@@ -42,7 +43,7 @@ class ComponentRepository:
     def dispatch_event(self, id, command, kwargs):
         assert not command.startswith("_")
         component = self.components[id]
-        handler = getattr(component, command)
+        handler = getattr(component, settings.RECEIVER_PREFIX + command)
         handler(**filter_parameters(handler, kwargs))
         return component
 

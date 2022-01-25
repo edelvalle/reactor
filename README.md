@@ -81,6 +81,7 @@ REACTOR = {
     "USE_HMIN": False,
     "TRANSPILER_CACHE_SIZE": 1024,
     "BOOST_PAGES": False,
+    "RECEIVER_PREFIX": "recv_",
     "AUTO_BROADCAST": False,
 }
 ```
@@ -90,6 +91,8 @@ REACTOR = {
 - `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
 
 - `TRANSPILER_CACHE_SIZE`: how many transpiled event handlers will be kept in the LRU cache for quick transpilation.
+
+- `RECEIVER_PREFIX`: is the prefix of the event handlers of the components.
 
 - `AUTO_BROADCAST`: Controls which signals are sent to `Componet.mutation` when a model is mutated.
 
@@ -270,7 +273,7 @@ Given:
 You will need an event handler in that component in the back-end:
 
 ```python
-def inc(self, amount: int):
+def recv_inc(self, amount: int):
     ...
 ```
 
@@ -307,13 +310,13 @@ class XCounter(Component):
 
     amount: int = 0
 
-    def inc(self):
+    def recv_inc(self):
         self.amount += 1
 
-    def dec(self):
+    def recv_dec(self):
         self.amount -= 1
 
-    def set_to(self, amount: int):
+    def recv_set_to(self, amount: int):
         self.amount = amount
 ```
 

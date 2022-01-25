@@ -146,6 +146,7 @@ class ReactorMeta:
                 attr: getattr(component, attr)
                 for attr in dir(component)
                 if not attr.startswith("_")
+                or not attr.startswith(settings.RECEIVER_PREFIX)
             },
             this=component,
             reactor_repository=repo,
@@ -214,6 +215,7 @@ class Component(BaseModel):
             if (
                 not attr_name.startswith("_")
                 and attr_name.islower()
+                and attr_name.startswith(settings.RECEIVER_PREFIX)
                 and callable(attr)
             ):
                 setattr(
