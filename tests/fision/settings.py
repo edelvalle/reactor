@@ -20,6 +20,7 @@ BASE_DIR = up(up(os.path.abspath(__file__)))
 
 REACTOR = {
     "BOOST_PAGES": True,
+    "AUTO_BROADCAST": True,
 }
 
 

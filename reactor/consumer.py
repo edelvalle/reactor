@@ -101,14 +101,30 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             log.debug(f'>>> PUSH FAILED "{e}"')
             await self.component_redirect_to(url)
 
-    # Model mutation
+    # Incoming messages from subscriptions
 
     async def model_mutation(self, data):
-        channel = data["origin"]
-        instance = serializer.decode(data["instance"])
-        action = data["action"]
+        # The signature here is coupled to:
+        #   `reactor.auto_broadcast.notify_mutation`
+        await self._dispatch_notifications(
+            "mutation",
+            data["channel"],
+            {
+                "instance": serializer.decode(data["instance"]),
+                "action": data["action"],
+            },
+        )
+
+    async def notification(self, data):
+        # The signature here is coupled to:
+        #   `reactor.component.broadcast`
+        await self._dispatch_notifications(
+            "notification", data["channel"], data["kwargs"]
+        )
+
+    async def _dispatch_notifications(self, receiver, channel, kwargs):
         for component in self.repo.components_subscribed_to(channel):
-            await db(component.mutation)(channel, instance, action)
+            await db(getattr(component, receiver))(channel, **kwargs)
             await self.send_render(component)
         await self.send_pending_messages()
 

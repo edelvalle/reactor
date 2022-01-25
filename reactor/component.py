@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 from pydantic import BaseModel, validate_arguments
 from pydantic.fields import Field
 
-from . import serializer, settings
+from . import serializer, settings, utils
 
 if settings.USE_HMIN:
     try:
@@ -27,6 +27,13 @@ else:
 
     def html_minify(html):
         return html
+
+
+__all__ = ("Component", "broadcast")
+
+
+def broadcast(channel, **kwargs):
+    utils.send_to(channel, type="notification", kwargs=kwargs)
 
 
 class ReactorMeta:
@@ -285,6 +292,9 @@ class Component(BaseModel):
         ...
 
     def mutation(self, channel, instance, action):
+        ...
+
+    def notification(self, channel, **kwargs):
         ...
 
     def destroy(self):
