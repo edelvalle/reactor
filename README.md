@@ -80,9 +80,9 @@ In your app create a template `x-counter.html`:
 {% load reactor %}
 <div {% tag_header %}>
   {{ amount }}
-  <button {% on 'click 'inc' %}>+</button>
-  <button {% on 'click 'dec' %}>-</button>
-  <button {% on 'click 'set_to' amount=0 %}">reset</button>
+  <button {% on 'click' 'inc' %}>+</button>
+  <button {% on 'click' 'dec' %}>-</button>
+  <button {% on 'click' 'set_to' amount=0 %}">reset</button>
 </div>
 ```
 
