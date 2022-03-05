@@ -146,7 +146,7 @@ class ReactorMeta:
                 attr: getattr(component, attr)
                 for attr in dir(component)
                 if not attr.startswith("_")
-                or not attr.startswith(settings.RECEIVER_PREFIX)
+                and not attr.startswith(settings.RECEIVER_PREFIX)
             },
             this=component,
             reactor_repository=repo,
