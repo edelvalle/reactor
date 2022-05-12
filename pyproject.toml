@@ -4,4 +4,21 @@ line_length = 80
 
 [tool.black]
 line-length = 80
-target-version = ['py36']
+target-version = ['py310']
+
+[tool.djlint]
+indent = 2
+ignore = "H030,H031"
+profile = "django"
+use-gitignore = true
+max_line_length = 80
+blank_line_after_tag = "load, extends"
+
+[tool.pyright]
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+exclude = [".git", "tests/", "**/__pycache__", "**/migrations"]
+reportPrivateUsage = false
+
+[tool.django-stubs]
+django_settings_module = "tests.fision.settings"

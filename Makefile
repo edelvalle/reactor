@@ -15,6 +15,12 @@ build:
 	node esbuild.conf.js
 	python setup.py sdist
 
-test:
+check:
+	pyright
 	flake8 --max-line-length=80 reactor
-	py.test
+	djlint --check .
+
+run:
+	cd tests/; python manage.py runserver
+
+.PHONY: all install watch-js build check run

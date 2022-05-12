@@ -1,19 +1,27 @@
 from functools import reduce
 
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 
 from . import settings
-from .component import Component
+from .component import Component, MessagePayload
 from .utils import filter_parameters
 
 
 class ComponentRepository:
-    def __init__(self, user=None, channel_name=None):
+    user: AnonymousUser | AbstractBaseUser
+
+    def __init__(
+        self,
+        user: AbstractBaseUser | None = None,
+        channel_name: str | None = None,
+    ):
         self.channel_name = channel_name
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
 
-    def new(self, name, state, parent_id=None) -> Component:
+    def new(
+        self, name: str, state: MessagePayload, parent_id: str | None = None
+    ) -> Component:
         component = Component._new(
             name,
             state,

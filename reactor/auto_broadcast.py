@@ -1,6 +1,6 @@
 import logging
+import typing as t
 
-from django.core import serializers
 from django.db import models
 from django.db.models.signals import m2m_changed, post_save, pre_delete
 from django.dispatch import receiver
@@ -12,6 +12,7 @@ from .utils import send_to
 __all__ = ("Action",)
 
 log = logging.getLogger("reactor")
+
 
 MODEL = AUTO_BROADCAST.get("MODEL", False)
 MODEL_PK = AUTO_BROADCAST.get("MODEL_PK", False)
@@ -30,6 +31,15 @@ class Action:
     REMOVED = "REMOVED"
     CLEARED = "CLEARED"
 
+    T = (
+        t.Literal["UPDATED"]
+        | t.Literal["DELETED"]
+        | t.Literal["CREATED"]
+        | t.Literal["ADDED"]
+        | t.Literal["REMOVED"]
+        | t.Literal["CLEARED"]
+    )
+
 
 if MODEL or MODEL_PK or RELATED:
 
@@ -42,33 +52,38 @@ if MODEL or MODEL_PK or RELATED:
             notify_mutation([name], encoded_instance, action)
 
         if instance.pk is not None:
-            MODEL_PK and notify_mutation(
-                [f"{name}.{instance.pk}"],
-                encoded_instance,
-                action,
-            )
-            RELATED and broadcast_related(
-                sender, instance, encoded_instance, action=action
-            )
+            if MODEL_PK:
+                notify_mutation(
+                    [f"{name}.{instance.pk}"],
+                    encoded_instance,
+                    action,
+                )
+            if RELATED:
+                broadcast_related(
+                    sender, instance, encoded_instance, action=action
+                )
 
     @receiver(pre_delete)
     def broadcast_pre_delete(sender, instance, **kwargs):
         name = sender._meta.model_name
         encoded_instance = serializer.encode(instance)
-        MODEL and notify_mutation([name], encoded_instance, Action.DELETED)
+        if MODEL:
+            notify_mutation([name], encoded_instance, Action.DELETED)
 
         if instance.pk is not None:
-            MODEL_PK and notify_mutation(
-                [f"{name}.{instance.pk}"],
-                encoded_instance,
-                Action.DELETED,
-            )
-            RELATED and broadcast_related(
-                sender, instance, encoded_instance, Action.DELETED
-            )
+            if MODEL_PK:
+                notify_mutation(
+                    [f"{name}.{instance.pk}"],
+                    encoded_instance,
+                    Action.DELETED,
+                )
+            if RELATED:
+                broadcast_related(
+                    sender, instance, encoded_instance, Action.DELETED
+                )
 
 
-def broadcast_related(sender, instance, encoded_instance, action: Action):
+def broadcast_related(sender, instance, encoded_instance, action: Action.T):
     for field in get_related_fields(sender):
         if field["is_m2m"]:
             fk_ids = getattr(instance, field["name"]).values_list(
@@ -117,7 +132,7 @@ if M2M:
         sender, instance, action, model, pk_set, **kwargs
     ):
         if action.startswith("post_") and instance.pk:
-            encoded_instance = serializers.encode(instance)
+            encoded_instance = serializer.encode(instance)
             if action.endswith("_add"):
                 action = Action.ADDED
             elif action.endswith("_remove"):
@@ -130,15 +145,14 @@ if M2M:
             model_name = model._meta.model_name
             attr_name = get_name_of(sender, model)
             updates = [f"{model_name}.{pk}.{attr_name}" for pk in pk_set or []]
-            notify_mutation([updates], encoded_instance, action)
+            notify_mutation(updates, encoded_instance, action)
 
             model = type(instance)
             model_name = model._meta.model_name
             attr_name = get_name_of(sender, model)
             update = f"{model_name}.{instance.pk}.{attr_name}"
-            notify_mutation(update)
             notify_mutation(
-                *[f"{update}.{pk}" for pk in pk_set or []],
+                [f"{update}.{pk}" for pk in pk_set or []],
                 encoded_instance,
                 action,
             )
@@ -153,7 +167,7 @@ def get_name_of(through, model):
             return model_field.name
 
 
-def notify_mutation(names, instance, action):
-    for name in [n.replace("_", "-") for n in names]:
+def notify_mutation(names: t.Iterable[str], instance: str, action: Action.T):
+    for name in (n.replace("_", "-") for n in names):
         log.debug(f"<-> {action} {name}")
         send_to(name, "model_mutation", instance=instance, action=action)

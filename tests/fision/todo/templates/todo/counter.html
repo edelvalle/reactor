@@ -1,8 +1,8 @@
 {% load reactor %}
+
 <div {% tag_header %}>
   <!-- This should be `0 items left` by default -->
   {% with amount=items.active.count %}
     <span class="todo-count"><strong>{{ amount }}</strong> item{{ amount|pluralize }} left</span>
   {% endwith %}
-
 </div>

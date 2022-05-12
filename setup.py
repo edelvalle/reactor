@@ -18,7 +18,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     include_package_data=True,
     zip_safe=False,
-    python_requires=">=3.6",
+    python_requires=">=3.10",
     install_requires=[
         "channels>=3.0.4,<4",
         "pydantic>=1.8.0,<2",
@@ -27,10 +27,15 @@ setup(
     extras_require={
         "dev": [
             "black",
+            "djlint",
             "flake8",
             "ipython",
             "whitenoise",
             "channels-redis",
+            "django-hmin",
+            "django-stubs",
+            "django-stubs-ext",
+            "pyright",
         ]
     },
     classifiers=[

@@ -144,27 +144,31 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
 
     async def send_pending_messages(self):
         await self.check_subscriptions()
-        for channel, command, kwargs in self.repo.messages_to_send:
-            await self.channel_layer.send(
-                channel,
-                {
-                    "type": "message_from_component",
-                    "command": command,
-                    "kwargs": kwargs,
-                },
-            )
+        if self.channel_layer is not None:
+            for channel, command, kwargs in self.repo.messages_to_send:
+                await self.channel_layer.send(
+                    channel,
+                    {
+                        "type": "message_from_component",
+                        "command": command,
+                        "kwargs": kwargs,
+                    },
+                )
 
     async def check_subscriptions(self):
-        subscriptions = self.repo.subscriptions
+        if self.channel_layer is not None and self.channel_name is not None:
+            subscriptions = self.repo.subscriptions
 
-        # new subscriptions
-        for channel in subscriptions - self.subscriptions:
-            log.debug(f"::: SUBSCRIBE {self.channel_name} to {channel}")
-            await self.channel_layer.group_add(channel, self.channel_name)
+            # new subscriptions
+            for channel in subscriptions - self.subscriptions:
+                log.debug(f"::: SUBSCRIBE {self.channel_name} to {channel}")
+                await self.channel_layer.group_add(channel, self.channel_name)
 
-        # remove subscriptions
-        for channel in self.subscriptions - subscriptions:
-            log.debug(f"::: UNSUBSCRIBE {self.channel_name} to {channel}")
-            await self.channel_layer.group_discard(channel, self.channel_name)
+            # remove subscriptions
+            for channel in self.subscriptions - subscriptions:
+                log.debug(f"::: UNSUBSCRIBE {self.channel_name} to {channel}")
+                await self.channel_layer.group_discard(
+                    channel, self.channel_name
+                )
 
-        self.subscriptions = subscriptions
+            self.subscriptions = subscriptions
