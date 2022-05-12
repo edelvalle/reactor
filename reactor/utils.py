@@ -7,17 +7,17 @@ from channels.layers import get_channel_layer
 from django.utils.datastructures import MultiValueDict
 
 
-def on_commit(f):
+def on_commit(f: t.Callable[(...), None]):
     @wraps(f)
-    def wrapper(*args, **kwargs):
-        from django.db.transaction import on_commit
+    def wrapper(*args: t.Any, **kwargs: t.Any):
+        from django.db.transaction import on_commit  # type: ignore
 
         on_commit(lambda: f(*args, **kwargs))
 
     return wrapper
 
 
-def send_to(channel: t.Optional[str], type: str, **kwargs):
+def send_to(channel: t.Optional[str], type: str, **kwargs: t.Any):
     """Sends a message of `type` to the"""
     if channel:
 

@@ -4,4 +4,13 @@ line_length = 80
 
 [tool.black]
 line-length = 80
-target-version = ['py36']
+target-version = ['py310']
+
+[tool.pyright]
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+exclude = [".git", "tests/", "**/__pycache__", "**/migrations"]
+reportPrivateUsage = false
+
+[tool.django-stubs]
+django_settings_module = "tests.fision.settings"
