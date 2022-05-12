@@ -27,6 +27,7 @@ setup(
     extras_require={
         "dev": [
             "black",
+            "djlint",
             "flake8",
             "ipython",
             "whitenoise",

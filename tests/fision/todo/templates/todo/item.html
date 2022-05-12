@@ -1,25 +1,16 @@
 {% load reactor %}
+
 <div {% tag_header %}>
-  <li
-    {% class {"completed": item.completed, "editing": editing, "hidden": not is_visible} %}
-  >
+  <li {% class {"completed": item.completed, "editing": editing, "hidden": not is_visible} %}>
     <div class="view">
-      <input
-        class="toggle"
-        type="checkbox"
-        name="completed"
-        {% cond {"checked": item.completed} %}
-        {% on 'change' 'completed' %}
-      >
+      <input class="toggle" type="checkbox" name="completed" {% cond {"checked": item.completed} %} {% on 'change' 'completed' %}/>
       <label {% on 'click' 'toggle_editing' %}>{{ item.text }}</label>
       <button {% on 'click' 'delete' %} class="destroy"></button>
     </div>
-    <input
-      class="edit"
-      name="text"
-      value="{{ item.text }}"
-      {% on 'blur' 'save' %}
-      {% on 'keypress.enter' 'save' %}
-    >
+    <input class="edit"
+           name="text"
+           value="{{ item.text }}"
+           {% on 'blur' 'save' %}
+           {% on 'keypress.enter' 'save' %}/>
   </li>
 </div>
