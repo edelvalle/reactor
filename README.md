@@ -63,7 +63,8 @@ In the templates where you want to use reactive components you have to load the 
 <!DOCTYPE html>
 <html>
   <head>
-    .... {% reactor_header %}
+    ...
+    {% reactor_header %}
   </head>
   ...
 </html>
@@ -140,6 +141,29 @@ And the index template being:
 
 Don't forget to update your `urls.py` to call the index view.
 
+### Persisting the state of the Counter in the URL as a GET parameter
+
+Add:
+
+```python
+...
+
+class XCounter(Component):
+  _url_params = {"amount": "counter_amount"}  # local attr -> get parameter name
+
+...
+```
+
+This will make it so when everytime amount is updated the URL will get [replaced](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) updating the GET parameter `?&counter_amount=20` (in case counter=20). So the user can copy that URL and share it, or navigate back to it and you can retrieve that GET parameter and restore the state of the component.
+
+
+```html
+...
+<body>
+  {% component 'XCounter' amount=request.GET.counter_amount|default:0 %}
+</body>
+...
+```
 
 ## Settings:
 
@@ -237,6 +261,7 @@ Instead use the class method `new` to create the instance.
 - `_extends`: (default: `"div"`) Tag name HTML element the component extends. (Each component is a HTML5 component so it should extend some HTML tag)
 - `_template_name`: Contains the path of the template of the component.
 - `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
+- `_url_params`: (default: `{}`) Indicates which local attribute should be persisted in the URL as a GET parameter, being the key a local attribute name and the value the name of the GET parameter that will contain the value of the local attribute.
 
 ##### Caching
 

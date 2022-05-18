@@ -7,7 +7,14 @@ def index(request):
 
 
 def todo(request):
-    return render(request, "todo.html", context={"title": "todo"})
+    return render(
+        request,
+        "todo.html",
+        context={
+            "title": "todo",
+            "showing": request.GET.get("showing", "all"),
+        },
+    )
 
 
 def redirect_to_index(request):
