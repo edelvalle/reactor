@@ -1,12 +1,13 @@
 from django.conf import settings
 from django.core.cache import InvalidCacheBackendError, caches
+from django.core.cache.backends.locmem import LocMemCache
 
 DEFAULT = {
     "USE_HTML_DIFF": True,
     "USE_HMIN": False,
-    "TRANSPILER_CACHE_SIZE": 1024,
     "BOOST_PAGES": False,
     "RECEIVER_PREFIX": "recv_",
+    "TRANSPILER_CACHE_NAME": "reactor:transpiler",
     "AUTO_BROADCAST": False,
 }
 
@@ -17,7 +18,7 @@ LOGIN_URL = settings.LOGIN_URL
 RECEIVER_PREFIX: str = REACTOR["RECEIVER_PREFIX"]
 USE_HTML_DIFF: bool = REACTOR["USE_HTML_DIFF"]
 USE_HMIN: bool = REACTOR["USE_HMIN"]
-TRANSPILER_CACHE_SIZE: int = REACTOR["TRANSPILER_CACHE_SIZE"]
+TRANSPILER_CACHE_NAME: str = REACTOR["TRANSPILER_CACHE_NAME"]
 BOOST_PAGES: bool = REACTOR["BOOST_PAGES"]
 AUTO_BROADCAST: dict[str, bool] = REACTOR["AUTO_BROADCAST"]
 
@@ -40,3 +41,11 @@ try:
     cache = caches["reactor"]
 except InvalidCacheBackendError:
     cache = caches["default"]
+
+try:
+    transpiler_cache = caches[TRANSPILER_CACHE_NAME]
+except InvalidCacheBackendError:
+    transpiler_cache = LocMemCache(
+        name=TRANSPILER_CACHE_NAME,
+        params={"timeout": 3600, "max_entries": 1024, "cull_frequency": 32},
+    )

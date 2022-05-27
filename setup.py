@@ -22,7 +22,6 @@ setup(
     install_requires=[
         "channels>=3.0.4,<4",
         "pydantic>=1.8.0,<2",
-        "lru-dict>=1.1.7,<1.2",
     ],
     extras_require={
         "dev": [

@@ -149,21 +149,17 @@ Default settings of reactor are:
 REACTOR = {
     "USE_HTML_DIFF": True,
     "USE_HMIN": False,
-    "TRANSPILER_CACHE_SIZE": 1024,
     "BOOST_PAGES": False,
     "RECEIVER_PREFIX": "recv_",
+    "TRANSPILER_CACHE_NAME": "reactor:transpiler",
     "AUTO_BROADCAST": False,
 }
 ```
 
 - `USE_HTML_DIFF`: when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth. If disabled it sends the full HTML content every time.
-
 - `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
-
-- `TRANSPILER_CACHE_SIZE`: how many transpiled event handlers will be kept in the LRU cache for quick transpilation.
-
 - `RECEIVER_PREFIX`: is the prefix of the event handlers of the components.
-
+- `TRANSPILER_CACHE_NAME`: which django cache (by name) to use for the event handler transpiler cache. This cache will be accessed with very high frequency so is advisable to use something that works in local memory. By default `LocMemCache(params={"timeout": 3600, "max_entries": 1024, "cull_frequency": 32})` is used if no cache is configured for this name.
 - `AUTO_BROADCAST`: Controls which signals are sent to `Componet.mutation` when a model is mutated.
 
 ```python
@@ -240,9 +236,17 @@ Instead use the class method `new` to create the instance.
 
 ##### Caching
 
+Component caching:
+
+If you set a cache named `"reactor"`, that cache will be used for components.
+
 - `_cache_key`: (default: `None`) If defined as a string is used as a cache key for rendering.
 - `_cache_time`: (default: `300` seconds) The retention time of the cache.
 - `_cache_touch`: (default: `True`) If enabled everytime the component is rendered the cache is refreshed extending the retention time.
+
+Transpiled event handler:
+
+If you set a cache named `"reactor:transpiler"` that one will be use, [by default `LocMemCache` is used](#settings).
 
 #### Subscriptions
 
