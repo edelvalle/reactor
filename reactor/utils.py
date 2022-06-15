@@ -1,5 +1,6 @@
 import inspect
 import typing as t
+from collections import defaultdict
 from functools import wraps
 
 from asgiref.sync import async_to_sync
@@ -49,47 +50,60 @@ def filter_parameters(f, kwargs):
 
 
 # Decoder for client requests
+def parse_request_data(data: MultiValueDict[str, t.Any]):
+    return _parse_obj(_extract_data(data))
 
 
-def parse_request_data(data: MultiValueDict):
-    output = {}
+def _extract_data(data: MultiValueDict[str, t.Any]):
     for key in set(data):
         if key.endswith("[]"):
+            key = key.removesuffix("[]")
             value = data.getlist(key)
         else:
             value = data.get(key)
-        _set_value_on_path(output, key, value)
+        yield key.split("."), value
+
+
+def _parse_obj(
+    data: t.Iterable[tuple[list[str], t.Any]], output=None
+) -> dict[str, t.Any] | t.Any:
+    output = output or {}
+    arrays = defaultdict(lambda: defaultdict(dict))  # field -> index -> value
+    for key, value in data:
+        fragment, *tail = key
+        if "[" in fragment:
+            field_name = fragment[: fragment.index("[")]
+            index = int(fragment[fragment.index("[") + 1 : -1])
+            arrays[field_name][index] = (
+                _parse_obj([(tail, value)], arrays[field_name][index])
+                if tail
+                else value
+            )
+        else:
+            output[fragment] = _parse_obj([(tail, value)]) if tail else value
+
+    for field, items in arrays.items():
+        output[field] = [
+            v for _, v in sorted(items.items(), key=lambda kv: kv[0])
+        ]
     return output
 
 
-def _set_value_on_path(target, path, value):
-    initial = target
-    fragments = path.split(".")
-    for fragment in fragments[:-1]:
-        fragment, default, index = _get_default_value(fragment)
-        target.setdefault(fragment, default)
-        target = target[fragment]
-        if index is not None:
-            i_need_this_length = index + 1 - len(target)
-            if i_need_this_length > 0:
-                target.extend({} for _ in range(i_need_this_length))
-            target = target[index]
-
-    fragment, default, index = _get_default_value(fragments[-1])
-    target[fragment] = value
-    return initial
+data = [
+    (["a"], [2, 2, 3, 5, 5]),
+    (["b"], 2),
+    (["x[0]"], 10),
+    (["x[1]"], 20),
+    (["c[1]", "a"], 1),
+    (["c[0]", "a"], 3),
+    (["c[1]", "b"], 1),
+    (["c[0]", "b"], 4),
+]
 
 
-def _get_default_value(fragment):
-    if fragment.endswith("[]"):
-        fragment = fragment[:-2]
-        default = []
-        index = None
-    if fragment.endswith("]"):
-        index = int(fragment[fragment.index("[") + 1 : -1])
-        fragment = fragment[: fragment.index("[")]
-        default = []
-    else:
-        default = {}
-        index = None
-    return fragment, default, index
+assert _parse_obj(data) == {
+    "a": [2, 2, 3, 5, 5],
+    "b": 2,
+    "c": [{"a": 3, "b": 4}, {"a": 1, "b": 1}],
+    "x": [10, 20],
+}
