@@ -200,6 +200,7 @@ class Component(BaseModel):
     _template_name: str = ...  # type: ignore
     _fqn: str
     _tag_name: str
+    _url_params: t.Mapping[str, str] = {}  # local_attr_name -> url_param_name
 
     # HTML tag that this component extends
     _extends = "div"
@@ -220,6 +221,7 @@ class Component(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        validate_assignment = True
         json_encoders = {  # type: ignore
             models.Model: lambda x: serializer.encode(x),  # type: ignore
             models.QuerySet: lambda qs: [x.pk for x in qs],  # type: ignore

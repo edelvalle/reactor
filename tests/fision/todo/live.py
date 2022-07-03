@@ -11,6 +11,7 @@ from .models import Item
 class XTodoList(Component):
     _template_name = "todo/list.html"
     _subscriptions = {"item"}
+    _url_params = {"showing": "showing"}
 
     showing: str = "all"
     new_item: str = ""

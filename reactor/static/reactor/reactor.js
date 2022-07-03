@@ -69,6 +69,41 @@ class ServerConnection extends EventTarget {
                     boost.HistoryCache.load(url)
                 }
                 break
+            case "set_url_params":
+                console.log("<< SET URL PARAMS", payload)
+
+                // "?a=x&..." -> "a=x&..."
+                let searchParams = document.location.search.slice(1)
+
+                let currentParams = {};
+                if (searchParams.length) {
+                    currentParams = searchParams
+                        .split("&") // ["a=x", ...]
+                        .map((x) => x.split("=")) // [["a", "x"], ...]
+                        .reduce( // {a: "x", ...}
+                            (acc, data) => {
+                                let [key, value] = data
+                                acc[key] = value === undefined ? undefined : decodeURIComponent(value)
+                                return acc
+                            },
+                            {}
+                        )
+                }
+
+                let newParams = Object
+                    .entries(Object.assign(currentParams, payload))
+                    .map((key_value) => {
+                        let [key, value] = key_value
+                        return key + (value === undefined ? "" : `=${encodeURIComponent(value)}`)
+                    })
+
+                let newpath = document.location.pathname
+                if (newParams.length) {
+                    newpath += "?" + newParams.join("&")
+                }
+                boost.HistoryCache.replace(newpath)
+                break;
+
             case "page":
                 var { url, content } = payload
                 console.log("<< PAGE", `"${url}"`)

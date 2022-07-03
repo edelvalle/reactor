@@ -138,6 +138,11 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 "render",
                 {"id": component.id, "diff": diff},
             )
+            if url_params := {
+                param: getattr(component, attr)
+                for attr, param in component._url_params.items()
+            }:
+                await self.send_command("set_url_params", url_params)
 
     async def send_command(self, command, payload):
         await self.send_json({"command": command, "payload": payload})
