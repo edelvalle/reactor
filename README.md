@@ -184,7 +184,7 @@ REACTOR = {
 - `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
 - `RECEIVER_PREFIX`: is the prefix of the event handlers of the components.
 - `TRANSPILER_CACHE_NAME`: which django cache (by name) to use for the event handler transpiler cache. This cache will be accessed with very high frequency so is advisable to use something that works in local memory. By default `LocMemCache(params={"timeout": 3600, "max_entries": 1024, "cull_frequency": 32})` is used if no cache is configured for this name.
-- `AUTO_BROADCAST`: Controls which signals are sent to `Componet.mutation` when a model is mutated.
+- `AUTO_BROADCAST`: Controls which signals are sent to `Component.mutation` when a model is mutated.
 
 ```python
 {
