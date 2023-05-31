@@ -1,11 +1,9 @@
-from django.db.transaction import atomic
 from pydantic import Field
 
 from reactor.auto_broadcast import Action
 from reactor.component import Component
-from reactor.fields import Model, QuerySet
 
-from .models import Item
+from .models import Item, ItemQS
 
 
 class XTodoList(Component):
@@ -20,32 +18,30 @@ class XTodoList(Component):
     def items(self):
         return Item.objects.all()
 
-    @property
-    def all_items_are_completed(self):
-        return self.items.count() == self.items.completed.count()
+    async def all_items_are_completed(self):
+        return (await self.items.acount()) == (
+            await self.items.completed().acount()
+        )
 
-    @atomic
-    def add(self, new_item: str):
-        Item.objects.create(text=new_item)
+    async def add(self, new_item: str):
+        await Item.objects.acreate(text=new_item)
         self.new_item = ""
 
-    def show(self, showing: str):
+    async def show(self, showing: str):
         self.showing = showing
 
-    @atomic
-    def toggle_all(self, toggle_all: bool = False):
-        self.reactor.redirect_to("/to-index")
+    async def toggle_all(self, toggle_all: bool = False):
+        await self.reactor.redirect_to("/to-index")
 
-    @atomic
-    def clear_completed(self):
-        self.items.completed.delete()
+    async def clear_completed(self):
+        await self.items.completed().adelete()
 
 
 class XTodoCounter(Component):
     _template_name = "todo/counter.html"
     _subscriptions = {"item"}
 
-    items: QuerySet[Item] = Field(default_factory=Item.objects.all)
+    items: ItemQS = Field(default_factory=Item.objects.all)
 
 
 class XTodoItem(Component):
@@ -55,13 +51,13 @@ class XTodoItem(Component):
     def _subscriptions(self):
         return {f"item.{self.item.id}"}
 
-    item: Model[Item]
+    item: Item
     editing: bool = False
     showing: str = "all"
 
-    def mutation(self, channel, instance, action):
+    async def mutation(self, channel, instance: Item, action):
         if action == Action.DELETED:
-            self.destroy()
+            await self.destroy()
         else:
             self.item = instance
 
@@ -73,24 +69,21 @@ class XTodoItem(Component):
             or (self.showing == "active" and not self.item.completed)
         )
 
-    @atomic
-    def delete(self):
-        self.item.delete()
-        self.destroy()
+    async def delete(self):
+        await self.item.adelete()
+        await self.destroy()
 
-    @atomic
-    def completed(self, completed: bool = False):
+    async def completed(self, completed: bool = False):
         self.item.completed = completed
-        self.item.save()
+        await self.item.asave()
 
-    def toggle_editing(self):
+    async def toggle_editing(self):
         if not self.item.completed:
             self.editing = not self.editing
         if self.editing:
-            self.focus_on(f"#{self.id} input[name=text]")
+            await self.focus_on(f"#{self.id} input[name=text]")
 
-    @atomic
-    def save(self, text):
+    async def save(self, text):
         self.item.text = text
-        self.item.save()
+        await self.item.asave()
         self.editing = False

@@ -1,4 +1,5 @@
 from uuid import uuid4
+
 from django.db import models
 
 
@@ -9,13 +10,10 @@ class BaseModel(models.Model):
         abstract = True
 
 
-class ItemQS(models.QuerySet):
-
-    @property
+class ItemQS(models.QuerySet["Item"]):
     def completed(self):
         return self.filter(completed=True)
 
-    @property
     def active(self):
         return self.filter(completed=False)
 
@@ -24,7 +22,7 @@ class Item(BaseModel):
     completed = models.BooleanField(default=False)
     text = models.CharField(max_length=256)
 
-    objects = ItemQS.as_manager()
+    objects: ItemQS = ItemQS.as_manager()  # type: ignore
 
     def __str__(self):
         return self.text

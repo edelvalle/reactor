@@ -1,5 +1,6 @@
 from functools import reduce
 
+from channels.layers import BaseChannelLayer
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 
 from . import settings
@@ -14,10 +15,15 @@ class ComponentRepository:
         self,
         user: AbstractBaseUser | None = None,
         channel_name: str | None = None,
+        channel_layer: BaseChannelLayer | None = None,
     ):
         self.channel_name = channel_name
+        self.channel_layer = channel_layer
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
+
+    def get(self, component_id: str) -> Component | None:
+        return self.components.get(component_id)
 
     def new(
         self, name: str, state: MessagePayload, parent_id: str | None = None
@@ -27,12 +33,13 @@ class ComponentRepository:
             state,
             user=self.user,
             channel_name=self.channel_name,
+            channel_layer=self.channel_layer,
             parent_id=parent_id,
         )
         return self._register_component(component)
 
-    def join(self, name, state, parent_id=None) -> Component:
-        component = Component._rebuild(
+    async def join(self, name, state, parent_id=None) -> Component:
+        component = await Component._rebuild(
             name,
             state,
             user=self.user,
@@ -48,11 +55,11 @@ class ComponentRepository:
     def remove(self, id):
         self.components.pop(id, None)
 
-    def dispatch_event(self, id, command, kwargs):
+    async def dispatch_event(self, id, command, kwargs):
         assert not command.startswith("_")
         component = self.components[id]
         handler = getattr(component, settings.RECEIVER_PREFIX + command)
-        handler(**filter_parameters(handler, kwargs))
+        await handler(**filter_parameters(handler, kwargs))
         return component
 
     def components_subscribed_to(self, channel):
@@ -72,10 +79,3 @@ class ComponentRepository:
             ),
             set(),
         )
-
-    @property
-    def messages_to_send(self):
-        for component in self.components.values():
-            for message in component.reactor._messages_to_send:
-                yield message
-            component.reactor._messages_to_send = []

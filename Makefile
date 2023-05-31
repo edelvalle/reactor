@@ -23,4 +23,8 @@ check:
 run:
 	cd tests/; python manage.py runserver
 
-.PHONY: all install watch-js build check run
+shell:
+	cd tests/; python manage.py shell
+
+
+.PHONY: all install watch-js build check run shell

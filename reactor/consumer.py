@@ -1,5 +1,6 @@
 import json
 import logging
+import typing as t
 
 from channels.db import database_sync_to_async as db
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -8,6 +9,8 @@ from django.core.signing import Signer
 from django.http.response import HttpResponse
 from django.test import Client
 from django.utils.datastructures import MultiValueDict
+
+from reactor.component import Component
 
 from . import serializer
 from .repository import ComponentRepository
@@ -27,6 +30,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         self.repo = ComponentRepository(
             user=self.user,
             channel_name=self.channel_name,
+            channel_layer=self.channel_layer,
         )
 
     # Fronted commands
@@ -39,9 +43,9 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def command_join(self, name, state):
         state = json.loads(Signer().unsign(state))
         log.debug(f"<<< JOIN {name} {state}")
-        component = await db(self.repo.join)(name, state)
+        component = await self.repo.join(name, state)
         await self.send_render(component)
-        await self.send_pending_messages()
+        await self.update_to_which_channels_im_subscribed_to()
 
     async def command_leave(self, id):
         log.debug(f"<<< LEAVE {id}")
@@ -54,11 +58,11 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             parse_request_data(MultiValueDict(implicit_args)), **explicit_args
         )
         log.debug(f"<<< USER-EVENT {id} {command} {kwargs}")
-        component = await db(self.repo.dispatch_event)(id, command, kwargs)
+        component = await self.repo.dispatch_event(id, command, kwargs)
         await self.send_render(component)
-        await self.send_pending_messages()
+        await self.update_to_which_channels_im_subscribed_to()
 
-    # Componet commands
+    # Component commands
 
     async def message_from_component(self, data):
         await getattr(self, f"component_{data['command']}")(**data["kwargs"])
@@ -66,6 +70,11 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def component_remove(self, id):
         log.debug(f">>> REMOVE {id}")
         await self.send_command("remove", {"id": id})
+
+    async def component_send_render(self, id):
+        log.debug(f">>> SEND-RENDER {id}")
+        if component := self.repo.get(id):
+            await self.send_render(component)
 
     async def component_focus_on(self, selector):
         log.debug(f'>>> FOCUS ON "{selector}"')
@@ -86,8 +95,9 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 url,
                 follow=True,
             )
-            if response.redirect_chain:
-                page_url, _status = response.redirect_chain[-1]
+            redirects: list[tuple(str, int)] = response.redirect_chain  # type: ignore
+            if redirects:
+                page_url, _status = redirects[-1]
             else:
                 page_url = url
             await self.send_command(
@@ -122,16 +132,18 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             "notification", data["channel"], data["kwargs"]
         )
 
-    async def _dispatch_notifications(self, receiver, channel, kwargs):
+    async def _dispatch_notifications(
+        self, receiver: str, channel: str, kwargs: dict[str, t.Any]
+    ):
         for component in self.repo.components_subscribed_to(channel):
-            await db(getattr(component, receiver))(channel, **kwargs)
+            await getattr(component, receiver)(channel, **kwargs)
             await self.send_render(component)
-        await self.send_pending_messages()
+        await self.update_to_which_channels_im_subscribed_to()
 
-    # Reply to frontned
+    # Reply to front-end
 
-    async def send_render(self, component):
-        diff = await db(component.render_diff)(self.repo)
+    async def send_render(self, component: Component):
+        diff = await component.render_diff(self.repo)
         if diff is not None:
             log.debug(f">>> RENDER {component._name} {component.id}")
             await self.send_command(
@@ -147,20 +159,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def send_command(self, command, payload):
         await self.send_json({"command": command, "payload": payload})
 
-    async def send_pending_messages(self):
-        await self.check_subscriptions()
-        if self.channel_layer is not None:
-            for channel, command, kwargs in self.repo.messages_to_send:
-                await self.channel_layer.send(
-                    channel,
-                    {
-                        "type": "message_from_component",
-                        "command": command,
-                        "kwargs": kwargs,
-                    },
-                )
-
-    async def check_subscriptions(self):
+    async def update_to_which_channels_im_subscribed_to(self):
         if self.channel_layer is not None and self.channel_name is not None:
             subscriptions = self.repo.subscriptions
 

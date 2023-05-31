@@ -117,7 +117,8 @@ class CondNode(Node):
         self.dict_expression = dict_expression
 
     def render(self, context):
-        terms = eval(self.dict_expression, context.flatten())
+        variables: dict[str, t.Any] = context.flatten()  # type: ignore
+        terms = eval(self.dict_expression, variables)
         return " ".join(term for term, ok in terms.items() if ok)
 
 

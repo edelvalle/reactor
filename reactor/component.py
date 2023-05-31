@@ -1,16 +1,20 @@
 import difflib
 import typing as t
+from asyncio import iscoroutine, iscoroutinefunction
 from functools import reduce
 from uuid import uuid4
 
+from asgiref.sync import async_to_sync
+from channels.db import database_sync_to_async as db
+from channels.layers import BaseChannelLayer
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
 from django.db import models
+from django.http import HttpRequest
 from django.shortcuts import resolve_url  # type: ignore
 from django.template import loader
-from django.template.base import Template
 from django.utils.html import format_html
-from django.utils.safestring import SafeText, mark_safe
+from django.utils.safestring import SafeString, SafeText, mark_safe
 from pydantic import BaseModel, validate_arguments
 from pydantic.fields import Field
 
@@ -36,6 +40,15 @@ HTMLDiff = list[str | int]
 User = AnonymousUser | AbstractBaseUser
 
 
+class Template(t.Protocol):
+    def render(
+        self,
+        context: Context | dict[str, t.Any] | None = ...,
+        request: HttpRequest | None = ...,
+    ) -> SafeString:
+        ...
+
+
 class Repo(t.Protocol):
     pass
 
@@ -51,35 +64,40 @@ class ReactorMeta:
     _last_sent_html: list[str]
 
     def __init__(
-        self, channel_name: str | None = None, parent_id: str | None = None
+        self,
+        channel_name: str | None = None,
+        channel_layer: BaseChannelLayer | None = None,
+        parent_id: str | None = None,
     ):
         self.channel_name = channel_name
+        self.channel_layer = channel_layer
         self.parent_id = parent_id
         self._destroyed = False
         self._is_frozen = False
         self._redirected_to = None
         self._last_sent_html = []
-        self._template = None
-        self._messages_to_send: list[tuple[str, str, MessagePayload]] = []
 
-    def destroy(self, component_id: str):
+    async def destroy(self, component_id: str):
         if not self._destroyed:
             self._destroyed = True
-            self.send("remove", id=component_id)
+            await self.send("remove", id=component_id)
 
     def freeze(self):
         self._is_frozen = True
 
-    def redirect_to(self, to: t.Any, **kwargs: t.Any):
-        self._redirect(to, kwargs)
+    async def redirect_to(self, to: t.Any, **kwargs: t.Any):
+        await self._redirect(to, kwargs)
 
-    def replace_to(self, to: RedirectDestination, **kwargs: t.Any):
-        self._redirect(to, kwargs, replace=True)
+    async def replace_to(self, to: RedirectDestination, **kwargs: t.Any):
+        await self._redirect(to, kwargs, replace=True)
 
-    def push_to(self, to: RedirectDestination, **kwargs: t.Any):
-        self._push(to, kwargs)
+    async def push_to(self, to: RedirectDestination, **kwargs: t.Any):
+        await self._push(to, kwargs)
 
-    def _redirect(
+    async def send_render(self, component_id: str):
+        await self.send("render", id=component_id)
+
+    async def _redirect(
         self,
         to: RedirectDestination,
         kwargs: t.Any,
@@ -89,19 +107,19 @@ class ReactorMeta:
         self._redirected_to = url
         if self.channel_name:
             self.freeze()
-            self.send("redirect_to", url=url, replace=replace)
+            await self.send("redirect_to", url=url, replace=replace)
 
-    def _push(self, to: RedirectDestination, kwargs: Context):
+    async def _push(self, to: RedirectDestination, kwargs: Context):
         url = resolve_url(to, **kwargs)
         self._redirected_to = url
         if self.channel_name:
             self.freeze()
-            self.send("push_page", url=url)
+            await self.send("push_page", url=url)
 
-    def render_diff(
+    async def render_diff(
         self, component: "Component", repo: Repo
     ) -> HTMLDiff | None:
-        html = self.render(component, repo)
+        html = await db(self.render)(component, repo)
         if html and self._last_sent_html != (html := html.split(" ")):
             if settings.USE_HTML_DIFF:
                 diff: HTMLDiff = []
@@ -136,7 +154,7 @@ class ReactorMeta:
                 html = settings.cache.get(key)
 
             if html is None:
-                template = self._get_template(component._template_name)
+                template = component._get_template()
                 context = self._get_context(component, repo)
                 html = template.render(context).strip()
                 html = html_minify(html)
@@ -147,33 +165,39 @@ class ReactorMeta:
         if html:
             return mark_safe(html)
 
-    def _get_template(self, template_name: list[str] | str) -> Template:
-        if not self._template:
-            if isinstance(template_name, (list, tuple)):
-                self._template = loader.select_template(template_name)
-            else:
-                self._template = loader.get_template(template_name)
-        return self._template
-
-    def send(self, _topic: str, **kwargs: t.Any):
+    async def send(self, _command: str, **kwargs: t.Any):
         if self.channel_name:
-            self.send_to(self.channel_name, _topic, **kwargs)
+            await self.send_to(self.channel_name, _command, **kwargs)
 
-    def send_to(self, _channel: str, _topic: str, **kwargs: t.Any):
-        self._messages_to_send.append((_channel, _topic, kwargs))
+    async def send_to(self, _channel: str, _command: str, **kwargs: t.Any):
+        if self.channel_layer:
+            await self.channel_layer.send(
+                _channel,
+                {
+                    "type": "message_from_component",
+                    "command": _command,
+                    "kwargs": kwargs,
+                },
+            )
 
     def _get_context(
         self,
         component: "Component",
         repo: Repo,
     ) -> Context:
+        context = {}
+
+        for attr_name in dir(component):
+            if not attr_name.startswith("_") or not attr_name.startswith(
+                settings.RECEIVER_PREFIX
+            ):
+                attr = getattr(component, attr_name)
+                if iscoroutine(attr) or iscoroutinefunction(attr):
+                    attr = async_to_sync(attr)
+                context[attr_name] = attr
+
         return dict(
-            {
-                attr: getattr(component, attr)
-                for attr in dir(component)
-                if not attr.startswith("_")
-                or not attr.startswith(settings.RECEIVER_PREFIX)
-            },
+            context,
             this=component,
             reactor_repository=repo,
         )
@@ -198,6 +222,7 @@ class Component(BaseModel):
     _urls = {}
     _name: str = ...  # type: ignore
     _template_name: str = ...  # type: ignore
+    _template_engine: Template
     _fqn: str
     _tag_name: str
     _url_params: t.Mapping[str, str] = {}  # local_attr_name -> url_param_name
@@ -208,7 +233,7 @@ class Component(BaseModel):
     # fields to exclude from the component state during serialization
     _exclude_fields = {"user", "reactor"}
 
-    # Cache: the render of the componet can be cached if you define a cache key
+    # Cache: the render of the component can be cached if you define a cache key
     _cache_key: str | None = None
     # expiration time of the cache
     _cache_time = 300
@@ -230,7 +255,6 @@ class Component(BaseModel):
     def __init_subclass__(
         cls: t.Type["Component"], name: str | None = None, public: bool = True
     ) -> t.Type["Component"]:
-
         if public:
             name = name or cls.__name__
             cls._all[name] = cls
@@ -239,7 +263,7 @@ class Component(BaseModel):
             # Fully qualified name
             cls._fqn = f"{cls.__module__}.{name}"
 
-            # Compote a valid HTML tag from the componet name
+            # Compote a valid HTML tag from the component name
             name = "".join([("-" + c if c.isupper() else c) for c in name])
             name = name.strip("-").lower()
             cls._tag_name = "x-" + name
@@ -269,6 +293,7 @@ class Component(BaseModel):
         state: ComponentState,
         user: User,
         channel_name: str | None = None,
+        channel_layer: BaseChannelLayer | None = None,
         parent_id: str | None = None,
     ) -> "Component":
         if _component_name not in cls._all:
@@ -281,6 +306,7 @@ class Component(BaseModel):
         instance = cls._all[_component_name].new(
             reactor=ReactorMeta(
                 channel_name=channel_name,
+                channel_layer=channel_layer,
                 parent_id=parent_id,
             ),
             user=user,
@@ -289,7 +315,7 @@ class Component(BaseModel):
         return instance
 
     @classmethod
-    def _rebuild(
+    async def _rebuild(
         cls,
         _component_name: str,
         state: ComponentState,
@@ -312,8 +338,25 @@ class Component(BaseModel):
             ),
             **state,
         )
-        instance.joined()
+        await instance.joined()
         return instance
+
+    @classmethod
+    def _get_template(cls) -> Template:
+        if settings.DEBUG:
+            return cls._load_template()
+        else:
+            if (template := getattr(cls, "_template_engine", None)) is None:
+                template = cls._load_template()
+                setattr(cls, "_template_engine", template)
+            return template
+
+    @classmethod
+    def _load_template(cls) -> Template:
+        if isinstance(cls._template_name, (list, tuple)):
+            return loader.select_template(cls._template_name)
+        else:
+            return loader.get_template(cls._template_name)
 
     # State
     id: str = Field(default_factory=lambda: f"rx-{uuid4()}")
@@ -324,17 +367,20 @@ class Component(BaseModel):
     def new(cls, **kwargs: t.Any):
         return cls(**kwargs)
 
-    def joined(self):
+    async def joined(self):
         ...
 
-    def mutation(self, channel: str, instance: models.Model, action: Action.T):
+    async def mutation(self, channel: str, instance: t.Any, action: Action.T):
         ...
 
-    def notification(self, channel: str, **kwargs: t.Any):
+    async def notification(self, channel: str, **kwargs: t.Any):
         ...
 
-    def destroy(self):
-        self.reactor.destroy(self.id)
+    async def destroy(self):
+        await self.reactor.destroy(self.id)
+
+    async def send_render(self):
+        await self.reactor.send_render(self.id)
 
     def render(self, repo: Repo):
         return self.reactor.render(self, repo)
@@ -342,8 +388,8 @@ class Component(BaseModel):
     def render_diff(self, repo: Repo):
         return self.reactor.render_diff(self, repo)
 
-    def focus_on(self, selector: str):
-        return self.reactor.send("focus_on", selector=selector)
+    async def focus_on(self, selector: str):
+        await self.reactor.send("focus_on", selector=selector)
 
 
 class ComponentNotFound(LookupError):

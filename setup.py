@@ -35,6 +35,7 @@ setup(
             "django-stubs",
             "django-stubs-ext",
             "pyright",
+            "ruff",
         ]
     },
     classifiers=[

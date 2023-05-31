@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.cache import InvalidCacheBackendError, caches
 from django.core.cache.backends.locmem import LocMemCache
 
+DEBUG = settings.DEBUG
 DEFAULT = {
     "USE_HTML_DIFF": True,
     "USE_HMIN": False,
