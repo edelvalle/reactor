@@ -7,7 +7,7 @@ README = open(HERE / "README.md", encoding="utf8").read()
 
 setup(
     name="djangoreactor",
-    version="3.0.0b0",
+    version="4.0.0b0",
     url="https://github.com/edelvalle/reactor",
     author="Eddy Ernesto del Valle Pino",
     author_email="eddy@edelvalle.me",
