@@ -63,15 +63,13 @@ In the templates where you want to use reactive components you have to load the 
 <!DOCTYPE html>
 <html>
   <head>
-    ...
-    {% reactor_header %}
+    ... {% reactor_header %}
   </head>
   ...
 </html>
 ```
 
 Don't worry if you put this as early as possible, the scripts are loaded using `<script defer>` so they will be downloaded in parallel with the html, and when all is loaded they are executed.
-
 
 ## Simple example of a counter
 
@@ -104,13 +102,13 @@ class XCounter(Component):
 
     amount: int = 0
 
-    def recv_inc(self):
+    async def recv_inc(self):
         self.amount += 1
 
-    def recv_dec(self):
+    async def recv_dec(self):
         self.amount -= 1
 
-    def recv_set_to(self, amount: int):
+    async def recv_set_to(self, amount: int):
         self.amount = amount
 ```
 
@@ -155,7 +153,6 @@ class XCounter(Component):
 ```
 
 This will make it so when everytime amount is updated the URL will get [replaced](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) updating the GET parameter `?&counter_amount=20` (in case counter=20). So the user can copy that URL and share it, or navigate back to it and you can retrieve that GET parameter and restore the state of the component.
-
 
 ```html
 ...
