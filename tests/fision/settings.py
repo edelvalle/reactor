@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "fision.todo",
     "reactor",
     "channels",
+    "daphne",
     "whitenoise.runserver_nostatic",
     "django.contrib.admin",
     "django.contrib.auth",
