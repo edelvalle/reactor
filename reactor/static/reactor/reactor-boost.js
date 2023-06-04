@@ -50,6 +50,7 @@ function replaceBodyContent(withHtmlContent, options) {
     document.body = html.querySelector("body");
     boostAllLinks();
     if (options?.afterReplace) options.afterReplace(html);
+    document.querySelector("[autofocus]")?.focus();
   });
 }
 
