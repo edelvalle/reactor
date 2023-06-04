@@ -38,7 +38,8 @@ function boostElement(element) {
  */
 function _load(event) {
   event.preventDefault();
-  HistoryCache.load(event.target.href);
+  let url = event.target.tagName?.toLowerCase === "a" ? event.target.href : event.target.closest("a").href;
+  HistoryCache.load(url);
 }
 
 function replaceBodyContent(withHtmlContent, options) {
