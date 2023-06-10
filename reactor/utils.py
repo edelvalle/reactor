@@ -18,17 +18,13 @@ def on_commit(f: t.Callable[(...), None]):
     return wrapper
 
 
+@on_commit
 def send_to(channel: t.Optional[str], type: str, **kwargs: t.Any):
     """Sends a message of `type` to the"""
     if channel:
-
-        @on_commit
-        def send_message():
-            async_to_sync(get_channel_layer().group_send)(
-                channel, dict(type=type, channel=channel, **kwargs)
-            )
-
-        send_message()
+        async_to_sync(get_channel_layer().group_send)(
+            channel, dict(type=type, channel=channel, **kwargs)
+        )
 
 
 # Introspection
