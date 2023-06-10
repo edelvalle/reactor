@@ -167,38 +167,36 @@ This will make it so when everytime amount is updated the URL will get [replaced
 Default settings of reactor are:
 
 ```python
+
+from reactor.schemas import AutoBroadcast
+
 REACTOR = {
+    "TRANSPILER_CACHE_SIZE": 1024,
     "USE_HTML_DIFF": True,
     "USE_HMIN": False,
     "BOOST_PAGES": False,
-    "RECEIVER_PREFIX": "recv_",
     "TRANSPILER_CACHE_NAME": "reactor:transpiler",
-    "AUTO_BROADCAST": False,
+    "AUTO_BROADCAST": AutoBroadcast(
+        # model-a
+        model: bool = False
+        # model-a.1234
+        model_pk: bool = False
+        # model-b.9876.model-a-set
+        related: bool = False
+        # model-b.9876.model-a-set
+        # model-a.1234.model-b-set
+        m2m: bool = False
+        # this is a set of tuples of ('app_label', 'ModelName')
+        # to subscribe for the auto broadcast
+        senders: set[tuple[str, str]] = Field(default_factory=set)
+    ),
 }
 ```
 
+- `TRANSPILER_CACHE_SIZE`: this is the size of an LRU dict used to cache javascript event halder transpilations.
 - `USE_HTML_DIFF`: when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth. If disabled it sends the full HTML content every time.
 - `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
-- `RECEIVER_PREFIX`: is the prefix of the event handlers of the components.
-- `TRANSPILER_CACHE_NAME`: which django cache (by name) to use for the event handler transpiler cache. This cache will be accessed with very high frequency so is advisable to use something that works in local memory. By default `LocMemCache(params={"timeout": 3600, "max_entries": 1024, "cull_frequency": 32})` is used if no cache is configured for this name.
 - `AUTO_BROADCAST`: Controls which signals are sent to `Component.mutation` when a model is mutated.
-
-```python
-{
-    # model-a
-    'MODEL': True,
-
-    # model-a.1234
-    'MODEL_PK': True,
-
-    # model-b.9876.model-a-set
-    'RELATED': True,
-
-    # model-b.9876.model-a-set
-    # model-a.1234.model-b-set
-    'M2M': True,
-}
-```
 
 ## Back-end APIs
 
@@ -224,9 +222,9 @@ This passes those parameter there to `Component.new` that should return the comp
 
 ### Joins
 
-When the component arrives to the front-end if it is a root component (has no parent components) it "joins" the backend. Sends it's serialized state to the backend which rebuilds the component and calls `Component.joined`.
+When the component arrives to the front-end it "joins" the backend. Sends it's serialized state to the backend which rebuilds the component and calls `Component.joined`.
 
-After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was online while some change in the backend happened.
+After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was online while some change in the backend happened and the component needs to be updated.
 
 ### User events
 
@@ -236,7 +234,7 @@ When a component or its parent has joined it can send user events to the client.
 
 Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
 
-- In case a mutation in a model occurs `Component.mutation(channel: str, instance: Model, action: reactor.auto_broadcast.Action)` will be called.
+- In case a mutation in a model occurs `Component.mutation(channel: str, action: reactor.auto_broadcast.Action, instance: Model)` will be called.
 - In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
 
 ### Disconnection
@@ -250,40 +248,28 @@ Instead use the class method `new` to create the instance.
 
 ##### Rendering
 
-- `new`: Class method that responsable for the component initialization, pass what ever you need to bootstrap the component state and read from the database. Should return the component instance.
 - `_extends`: (default: `"div"`) Tag name HTML element the component extends. (Each component is a HTML5 component so it should extend some HTML tag)
 - `_template_name`: Contains the path of the template of the component.
 - `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
 - `_url_params`: (default: `{}`) Indicates which local attribute should be persisted in the URL as a GET parameter, being the key a local attribute name and the value the name of the GET parameter that will contain the value of the local attribute.
 
-##### Caching
-
-Component caching:
-
-If you set a cache named `"reactor"`, that cache will be used for components.
-
-- `_cache_key`: (default: `None`) If defined as a string is used as a cache key for rendering.
-- `_cache_time`: (default: `300` seconds) The retention time of the cache.
-- `_cache_touch`: (default: `True`) If enabled everytime the component is rendered the cache is refreshed extending the retention time.
-
-Transpiled event handler:
-
-If you set a cache named `"reactor:transpiler"` that one will be use, [by default `LocMemCache` is used](#settings).
-
 #### Subscriptions
 
 - `_subscriptions`: (default: `set()`) Defines which channels is this component subscribed to.
-- `mutation(channel, instance, action)` Called when autobroadcast is enabled and a model you are subscribed to changes.
+- `mutation(channel, action, instance)` Called when autobroadcast is enabled and a model you are subscribed to changes.
 - `notification(channel, **kwargs)` Called when `reactor.component.broadcast(channel, **kwargs)` is used to send an arbitrary notification to components.
 
 #### Actions
 
 - `destroy()`: Removes the component from the interface.
 - `focus_on(selector: str)`: Makes the front-end look for that `selector` and run `.focus()` on it.
-- `reactor.freeze()`: Prevents the component from being rendered again.
-- `reactor.redirect_to(to, **kwargs)`: Loads a new page and changes the url in the front-end.
+- `skip_render()`: Prevents the component from being rendered once.
+- `send_render()`: Send a signal to request render the component ahead of time.
+- `dom(_action: DomAction, id: str, component_or_template, **kwargs)`: Can append, prepend, insert befor or after certain HTMLElement ID in the dom, the component or template, rendered using the `kwargs`.
+- `freeze()`: Prevents the component from being rendered again.
+- `reactor.redirect_to(to, **kwargs)`: Changes the URL of the front-end and triggers a page load for that new URL
 - `reactor.replace_to(to, **kwargs)`: Changes the current URL for another one.
-- `reactor.push_to(to, **kwargs)`: Like redirect, but instead of loading from the server pushes the content of the page via websocket.
+- `reactor.push_to(to, **kwargs)`: Changs the URL of the front-end adding a new history entry but does not fetch the new URL from the backend.
 - `reactor.send(_channel: str, _topic: str, **kwargs)`: Sends a message over a channel.
 
 ## Front-end APIs
@@ -369,7 +355,7 @@ Given:
 You will need an event handler in that component in the back-end:
 
 ```python
-def recv_inc(self, amount: int):
+async def inc(self, amount: int):
     ...
 ```
 

@@ -4,10 +4,17 @@ from pydantic import BaseModel, Field
 
 
 class AutoBroadcast(BaseModel):
+    # model-a
     model: bool = False
+    # model-a.1234
     model_pk: bool = False
+    # model-b.9876.model-a-set
     related: bool = False
+    # model-b.9876.model-a-set
+    # model-a.1234.model-b-set
     m2m: bool = False
+    # this is a set of tuples of ('app_label', 'ModelName')
+    # to subscribe for the auto broadcast
     senders: set[tuple[str, str]] = Field(default_factory=set)
 
 
