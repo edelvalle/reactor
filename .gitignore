@@ -12,3 +12,5 @@ node_modules/*
 .coverage
 site/
 .vscode/
+pyrightconfig.json
+*.sublime-*
