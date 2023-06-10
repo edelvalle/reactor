@@ -40,12 +40,26 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             **content["payload"]
         )
 
-    async def command_join(self, name, state):
-        state = json.loads(Signer().unsign(state))
-        log.debug(f"<<< JOIN {name} {state}")
-        component = await self.repo.join(name, state)
-        await self.send_render(component)
-        await self.update_to_which_channels_im_subscribed_to()
+    async def command_join(
+        self,
+        name: str,
+        state: str,
+        parent_id: str | None = None,
+    ):
+        decoded_state: dict[str, t.Any] = json.loads(Signer().unsign(state))
+        log.debug(f"<<< JOIN {name} {decoded_state}")
+        try:
+            component, created = await self.repo.join(
+                name, decoded_state, parent_id=parent_id
+            )
+        except Exception as e:
+            log.exception(e)
+            if id := decoded_state.get("id"):
+                await self.component_remove(id)
+        else:
+            if created:
+                await self.send_render(component)
+            await self.update_to_which_channels_im_subscribed_to()
 
     async def command_leave(self, id):
         log.debug(f"<<< LEAVE {id}")

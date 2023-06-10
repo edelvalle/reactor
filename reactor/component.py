@@ -7,6 +7,7 @@ from uuid import uuid4
 from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async as db
 from channels.layers import BaseChannelLayer
+from django.apps import apps
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import AnonymousUser
 from django.db import models
@@ -16,10 +17,10 @@ from django.template import loader
 from django.utils.html import format_html
 from django.utils.safestring import SafeString, SafeText, mark_safe
 from pydantic import BaseModel, validate_arguments
-from pydantic.fields import Field
+from pydantic.fields import Field, ModelField
 
-from . import serializer, settings, utils
-from .auto_broadcast import Action
+from . import settings, utils
+from .schemas import DomAction, ModelAction
 
 if settings.USE_HMIN:
     try:
@@ -214,6 +215,22 @@ def compress_diff(diff: HTMLDiff, diff_item: str | int) -> HTMLDiff:
     return diff
 
 
+def load_model_instance(model, v, fields, field: ModelField, config):
+    if v is None or isinstance(v, field.type_):
+        return v
+    else:
+        return field.type_.objects.filter(pk=v).first()
+
+
+def load_queryset(model, v, fields, field: ModelField, config):
+    if isinstance(v, field.type_):
+        return v
+    else:
+        return apps.get_model(v["app"], v["model"]).objects.filter(  # type: ignore
+            pk__in=v["ids"]
+        )
+
+
 class Component(BaseModel):
     __name__: str
 
@@ -246,14 +263,18 @@ class Component(BaseModel):
     class Config:
         arbitrary_types_allowed = True
         validate_assignment = True
-        json_encoders = {  # type: ignore
-            models.Model: lambda x: serializer.encode(x),  # type: ignore
-            models.QuerySet: lambda qs: [x.pk for x in qs],  # type: ignore
+        json_encoders = {
+            models.Model: lambda x: x.pk,
+            models.QuerySet: lambda qs: {
+                "app": qs.model._meta.app_label,
+                "model": qs.model._meta.model_name,
+                "ids": [x.pk for x in qs],
+            },
         }
 
     def __init_subclass__(
         cls: t.Type["Component"], name: str | None = None, public: bool = True
-    ) -> t.Type["Component"]:
+    ):
         if public:
             name = name or cls.__name__
             cls._all[name] = cls
@@ -282,61 +303,51 @@ class Component(BaseModel):
                     )(attr),
                 )
 
-        return super().__init_subclass__()  # type: ignore
+        # Hook up the Model loaders
+        for field in cls.__fields__.values():
+            if field.pre_validators is None:
+                try:
+                    is_model = issubclass(field.type_, models.Model)
+                    is_qs = issubclass(field.type_, models.QuerySet)  # type: ignore
+                except TypeError:
+                    is_model = False
+                    is_qs = False
+
+                if is_model:
+                    field.pre_validators = [load_model_instance]
+                elif is_qs:
+                    field.pre_validators = [load_queryset]
+
+        super().__init_subclass__()
 
     @classmethod
-    def _new(
+    def _build(
         cls,
         _component_name: str,
         state: ComponentState,
-        user: User,
+        user: AnonymousUser | AbstractBaseUser | None = None,
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
         parent_id: str | None = None,
     ) -> "Component":
         if _component_name not in cls._all:
             raise ComponentNotFound(
-                f"Could not find requested component '{_component_name}'. "
-                f"Did you load the component?"
+                (
+                    f"Could not find requested component '{_component_name}'. "
+                    f"Did you load the component?"
+                )
             )
 
         # TODO: rename state to initial_state
         instance = cls._all[_component_name].new(
+            user=user or AnonymousUser(),
             reactor=ReactorMeta(
                 channel_name=channel_name,
                 channel_layer=channel_layer,
                 parent_id=parent_id,
             ),
-            user=user,
             **state,
         )
-        return instance
-
-    @classmethod
-    async def _rebuild(
-        cls,
-        _component_name: str,
-        state: ComponentState,
-        user: User,
-        channel_name: str | None = None,
-        parent_id: str | None = None,
-    ):
-        if _component_name not in cls._all:
-            raise ComponentNotFound(
-                f"Could not find requested component '{_component_name}'. "
-                f"Did you load the component?"
-            )
-
-        # TODO: rename state to initial_state
-        instance = cls._all[_component_name](
-            user=user or AnonymousUser(),
-            reactor=ReactorMeta(
-                channel_name=channel_name,
-                parent_id=parent_id,
-            ),
-            **state,
-        )
-        await instance.joined()
         return instance
 
     @classmethod
@@ -358,7 +369,7 @@ class Component(BaseModel):
 
     # State
     id: str = Field(default_factory=lambda: f"rx-{uuid4()}")
-    user: User
+    user: AnonymousUser | AbstractBaseUser
     reactor: ReactorMeta
 
     @classmethod
@@ -368,7 +379,9 @@ class Component(BaseModel):
     async def joined(self):
         ...
 
-    async def mutation(self, channel: str, instance: t.Any, action: Action.T):
+    async def mutation(
+        self, channel: str, action: ModelAction, instance: t.Any
+    ):
         ...
 
     async def notification(self, channel: str, **kwargs: t.Any):

@@ -114,9 +114,8 @@ class ServerConnection extends EventTarget {
     }
   }
 
-  sendJoin(name, state) {
-    console.log(">>> JOIN", name);
-    this._send("join", { name, state });
+  sendJoin(name, parent_id, state) {
+    this._send("join", { name, parent_id, state });
   }
 
   sendLeave(id) {
@@ -163,9 +162,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
 
     join() {
       this.classList.remove("reactor-disconnected");
-      if (this.isRoot) {
-        connection.sendJoin(this.dataset.name, this.dataset.state);
-      }
+      connection.sendJoin(this.dataset.name, this.parentId, this.dataset.state);
     }
 
     applyDiff(diff) {
@@ -202,13 +199,12 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     }
 
     /**
-     * Returns true when this is a high level component and has no parent
-     * component
+     * Returns the id of the parent component
      *
-     * @returns {boolean}
+     * @returns {?String}
      */
-    get isRoot() {
-      return !this.parentComponent;
+    get parentId() {
+      return this.parentComponent?.id;
     }
 
     /**
