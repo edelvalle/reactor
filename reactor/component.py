@@ -37,7 +37,8 @@ else:
 ComponentState = Context = MessagePayload = dict[str, t.Any]
 RedirectDestination = t.Callable[(...), t.Any] | models.Model | str
 HTMLDiff = list[str | int]
-User = AnonymousUser | AbstractBaseUser
+ComponentOrHtml = t.Union["Component", SafeString]
+P = t.ParamSpec("P")
 
 
 class Template(t.Protocol):
@@ -188,9 +189,7 @@ class ReactorMeta:
         context = {}
 
         for attr_name in dir(component):
-            if not attr_name.startswith("_") or not attr_name.startswith(
-                settings.RECEIVER_PREFIX
-            ):
+            if not attr_name.startswith("_"):
                 attr = getattr(component, attr_name)
                 if iscoroutine(attr) or iscoroutinefunction(attr):
                     attr = async_to_sync(attr)
@@ -273,7 +272,6 @@ class Component(BaseModel):
             if (
                 not attr_name.startswith("_")
                 and attr_name.islower()
-                and attr_name.startswith(settings.RECEIVER_PREFIX)
                 and callable(attr)
             ):
                 setattr(

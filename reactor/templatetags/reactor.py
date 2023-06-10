@@ -59,10 +59,9 @@ def on(context, _event_and_modifiers, _command, **kwargs: t.Any):
     component: t.Optional[Component] = context.get("this")
 
     assert component, "Can't find a component in this context"
-    attr_name = settings.RECEIVER_PREFIX + _command
-    handler = getattr(component, attr_name, None)
-    assert handler, f"Missing handler: {component._name}.{attr_name}"
-    assert callable(handler), f"Not callable: {component._name}.{attr_name}"
+    handler = getattr(component, _command, None)
+    assert handler, f"Missing handler: {component._name}.{_command}"
+    assert callable(handler), f"Not callable: {component._name}.{_command}"
 
     event, code = transpile(_event_and_modifiers, _command, kwargs)
     return format_html('{event}="{code}"', event=event, code=code)

@@ -58,7 +58,7 @@ class ComponentRepository:
     async def dispatch_event(self, id, command, kwargs):
         assert not command.startswith("_")
         component = self.components[id]
-        handler = getattr(component, settings.RECEIVER_PREFIX + command)
+        handler = getattr(component, command)
         await handler(**filter_parameters(handler, kwargs))
         return component
 
