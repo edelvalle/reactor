@@ -23,6 +23,7 @@ function boostElement(element) {
       !(
         element.boosted ||
         element.hasAttribute("onclick") ||
+        element.hasAttribute("target") ||
         element.hasAttribute(":no-boost")
       )
     ) {
