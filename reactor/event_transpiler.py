@@ -2,17 +2,20 @@ import json
 import typing as t
 
 from django.core.serializers.json import DjangoJSONEncoder
+from lru import LRU
 
-from . import settings
+from .settings import TRANSPIPER_CACHE_SIZE
 
 Stack = list[t.Any]
+
+CACHE: dict[str, str | None] = LRU(TRANSPIPER_CACHE_SIZE)
 
 
 def transpile(event_and_modifiers: str, command: str, kwargs: dict[str, t.Any]):
     """Translates from from the tag `on` in to JavaScript"""
     name, *modifiers = event_and_modifiers.split(".")
     cache_key = f"_handler:{modifiers}.{command}.{kwargs}"
-    code: t.Optional[str] = settings.transpiler_cache.get(cache_key)
+    code: t.Optional[str] = CACHE.get(cache_key)
     if code is None:
         if not modifiers or modifiers[-1] != "inlinejs":
             modifiers.append("_reactor_code")
@@ -28,7 +31,7 @@ def transpile(event_and_modifiers: str, command: str, kwargs: dict[str, t.Any]):
             else:
                 stack.append(modifier)
 
-        settings.transpiler_cache.set(cache_key, code)
+        CACHE[cache_key] = code
     return "on" + name, code
 
 
