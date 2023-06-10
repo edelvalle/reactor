@@ -21,8 +21,12 @@ class ItemQS(models.QuerySet["Item"]):
 class Item(BaseModel):
     completed = models.BooleanField(default=False)
     text = models.CharField(max_length=256)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects: ItemQS = ItemQS.as_manager()  # type: ignore
+
+    class Meta:
+        ordering = ["timestamp"]
 
     def __str__(self):
         return self.text

@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import os
 
+from reactor.schemas import AutoBroadcast
+
 up = os.path.dirname
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -20,8 +22,12 @@ BASE_DIR = up(up(os.path.abspath(__file__)))
 
 REACTOR = {
     "BOOST_PAGES": True,
-    "AUTO_BROADCAST": True,
-    "RECEIVER_PREFIX": "",
+    "AUTO_BROADCAST": AutoBroadcast(
+        model=True,
+        model_pk=True,
+        related=True,
+        m2m=True,
+    ),
 }
 
 

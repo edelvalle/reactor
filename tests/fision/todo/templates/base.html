@@ -1,13 +1,13 @@
 {% load static reactor %}
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }} • TodoMVC</title>
     <!-- CSS overrides - remove if you don't need it -->
-    <link rel="stylesheet" href="{% static "todo.css" %}"/>
+    <link rel="stylesheet" href="{% static "todo.css" %}" />
     {% reactor_header %}
   </head>
   <body>
@@ -16,10 +16,9 @@
       {% endblock body %}
       <!-- This footer should hidden by default and shown when there are todos -->
     </section>
+    <a></a>
     <footer class="info">
-      <p>
-        Double-click to edit a todo
-      </p>
+      <p>Double-click to edit a todo</p>
       <!-- Remove the below line ↓ -->
       <p>
         Template by <a href="https://sindresorhus.com">Sindre Sorhus</a>

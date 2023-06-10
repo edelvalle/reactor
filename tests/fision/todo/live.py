@@ -1,7 +1,5 @@
-from pydantic import Field
-
-from reactor.auto_broadcast import Action
 from reactor.component import Component
+from reactor.schemas import DomAction, ModelAction
 
 from .models import Item, ItemQS
 
@@ -14,10 +12,20 @@ class XTodoList(Component):
     showing: str = "all"
     new_item: str = ""
 
-    @property
-    def items(self):
-        return Item.objects.all()
+    items: ItemQS
 
+    async def mutation(self, channel, action: ModelAction, instance: Item):
+        if action == ModelAction.CREATED:
+            await self.dom(
+                DomAction.APPEND,
+                "todo-list",
+                XTodoItem,
+                id=f"item-{instance.id}",
+                item=instance,
+            )
+        self.skip_render()
+
+    @property
     async def all_items_are_completed(self):
         return (await self.items.acount()) == (
             await self.items.completed().acount()
@@ -25,12 +33,13 @@ class XTodoList(Component):
 
     async def add(self, new_item: str):
         await Item.objects.acreate(text=new_item)
+        self.skip_render()
         self.new_item = ""
 
     async def show(self, showing: str):
         self.showing = showing
 
-    async def toggle_all(self, toggle_all: bool = False):
+    async def toggle_all(self, itoggle_all: bool = False):
         await self.reactor.redirect_to("/to-index")
 
     async def clear_completed(self):
@@ -41,7 +50,9 @@ class XTodoCounter(Component):
     _template_name = "todo/counter.html"
     _subscriptions = {"item"}
 
-    items: ItemQS = Field(default_factory=Item.objects.all)
+    @property
+    def items(self):
+        return Item.objects.all()
 
 
 class XTodoItem(Component):
@@ -56,7 +67,7 @@ class XTodoItem(Component):
     showing: str = "all"
 
     async def mutation(self, channel, instance: Item, action):
-        if action == Action.DELETED:
+        if action == ModelAction.DELETED:
             await self.destroy()
         else:
             self.item = instance
@@ -81,9 +92,11 @@ class XTodoItem(Component):
         if not self.item.completed:
             self.editing = not self.editing
         if self.editing:
+            await self.send_render()
             await self.focus_on(f"#{self.id} input[name=text]")
 
     async def save(self, text):
         self.item.text = text
         await self.item.asave()
+        self.editing = False
         self.editing = False

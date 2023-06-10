@@ -1,8 +1,8 @@
 from django.shortcuts import redirect, render
+from fision.todo.models import Item
 
 
 def index(request):
-    print("GET", request.GET)
     return render(request, "index.html", context={"title": "index"})
 
 
@@ -12,6 +12,7 @@ def todo(request):
         "todo.html",
         context={
             "title": "todo",
+            "items": Item.objects.all(),
             "showing": request.GET.get("showing", "all"),
         },
     )
