@@ -84,17 +84,6 @@ class HistoryCache {
     }
   }
 
-  static loadContent(url, content) {
-    console.log("Load content", url);
-    replaceBodyContent(content, {
-      beforeReplace(html) {
-        HistoryCache._saveCurrentPage();
-        HistoryCache.push(url);
-        document.title = html.querySelector("title")?.text ?? "";
-      },
-    });
-  }
-
   static async restoreFromCurrentPath() {
     this._saveCurrentPage();
     let path = window.location.pathname + window.location.search;
