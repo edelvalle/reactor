@@ -148,22 +148,11 @@ class ReactorMeta:
                 '<meta http-equiv="refresh" content="0; url={url}">',
                 url=self._redirected_to,
             )
-        elif not (self._is_frozen or self._redirected_to):
-            key = component._cache_key
-            key = key and f"{component._fqn}:{key}"
-
-            if key is not None:
-                html = settings.cache.get(key)
-
-            if html is None:
-                template = component._get_template()
-                context = self._get_context(component, repo)
-                html = template.render(context).strip()
-                html = html_minify(html)
-
-            if key and component._cache_touch:
-                settings.cache.set(key, html, component._cache_time)
-
+        elif not (self._is_frozen or self._redirected_to) and html is None:
+            template = component._get_template()
+            context = self._get_context(component, repo)
+            html = template.render(context).strip()
+            html = html_minify(html)
         if html:
             return mark_safe(html)
 
@@ -248,13 +237,6 @@ class Component(BaseModel):
 
     # fields to exclude from the component state during serialization
     _exclude_fields = {"user", "reactor"}
-
-    # Cache: the render of the component can be cached if you define a cache key
-    _cache_key: str | None = None
-    # expiration time of the cache
-    _cache_time = 300
-    # if True will refresh the cache on each render
-    _cache_touch = True
 
     # Subscriptions: you can define here which channels this component is
     # subscribed to
