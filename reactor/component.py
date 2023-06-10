@@ -227,7 +227,7 @@ class Component(BaseModel):
     _urls = {}
     _name: str = ...  # type: ignore
     _template_name: str = ...  # type: ignore
-    _template_engine: Template
+    _templates: dict[str, Template] = {}
     _fqn: str
     _tag_name: str
     _url_params: t.Mapping[str, str] = {}  # local_attr_name -> url_param_name
@@ -333,21 +333,15 @@ class Component(BaseModel):
         return instance
 
     @classmethod
-    def _get_template(cls) -> Template:
+    def _get_template(cls, template_name: str | None = None) -> Template:
+        template_name = template_name or cls._template_name
         if settings.DEBUG:
-            return cls._load_template()
+            return loader.get_template(template_name)
         else:
-            if (template := getattr(cls, "_template_engine", None)) is None:
-                template = cls._load_template()
-                setattr(cls, "_template_engine", template)
+            if (template := cls._templates.get(template_name)) is None:
+                template = loader.get_template(template_name)
+                cls._templates[template_name] = template
             return template
-
-    @classmethod
-    def _load_template(cls) -> Template:
-        if isinstance(cls._template_name, (list, tuple)):
-            return loader.select_template(cls._template_name)
-        else:
-            return loader.get_template(cls._template_name)
 
     # State
     id: str = Field(default_factory=lambda: f"rx-{uuid4()}")
