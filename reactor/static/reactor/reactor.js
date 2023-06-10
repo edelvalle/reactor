@@ -4,6 +4,8 @@ import boost from "./reactor-boost";
 
 // Connection
 
+const parser = new DOMParser();
+
 class ServerConnection extends EventTarget {
   open(path = "__reactor__") {
     let protocol = location.protocol.replace("http", "ws");
@@ -41,6 +43,33 @@ class ServerConnection extends EventTarget {
         var { id, diff } = payload;
         console.log("<<< RENDER", id);
         document.getElementById(id)?.applyDiff(diff);
+        break;
+      case "append":
+      case "prepend":
+      case "insert_after":
+      case "insert_before":
+      case "replace_with":
+        var { id, html } = payload;
+        console.log(`<<< ${command.toUpperCase()}`, id);
+        html = parser.parseFromString(html, "text/html").body.firstChild;
+        var element = document.getElementById(id);
+        switch (command) {
+          case "append":
+            element?.append(html);
+            break;
+          case "prepend":
+            element?.prepend(html);
+            break;
+          case "insert_after":
+            element?.after(html);
+            break;
+          case "insert_before":
+            element?.before(html);
+            break;
+          case "replace_with":
+            element?.replaceWith(html);
+            break;
+        }
         break;
       case "remove":
         var { id } = payload;

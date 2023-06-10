@@ -6,7 +6,6 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
 from django.core.signing import Signer
 from django.utils.datastructures import MultiValueDict
-
 from reactor.component import Component
 
 from . import serializer
@@ -138,7 +137,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     # Reply to front-end
 
     async def send_render(self, component: Component):
-        diff = await component.render_diff(self.repo)
+        diff = await component._render_diff(self.repo)
         if diff is not None:
             log.debug(f">>> RENDER {component._name} {component.id}")
             await self.send_command(

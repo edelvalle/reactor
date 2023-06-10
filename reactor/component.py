@@ -55,6 +55,14 @@ class Repo(t.Protocol):
     pass
 
 
+ScrollPosition = (
+    t.Literal["start"]
+    | t.Literal["end"]
+    | t.Literal["center"]
+    | t.Literal["nearest"]
+)
+
+
 __all__ = ("Component", "broadcast")
 
 
@@ -74,15 +82,27 @@ class ReactorMeta:
         self.channel_name = channel_name
         self.channel_layer = channel_layer
         self.parent_id = parent_id
-        self._destroyed = False
-        self._is_frozen = False
-        self._redirected_to = None
+        self._is_frozen: bool = False
+        self._redirected_to: str | None = None
+        self._last_sent_html: list[str] = []
+        self._skip_render: bool = False
+
+    def clone(self):
+        return type(self)(
+            channel_name=self.channel_name,
+            channel_layer=self.channel_layer,
+        )
+
+    def skip_render(self):
+        self._skip_render = True
+
+    def force_render(self):
+        self._skip_render = False
         self._last_sent_html = []
 
     async def destroy(self, component_id: str):
-        if not self._destroyed:
-            self._destroyed = True
-            await self.send("remove", id=component_id)
+        self.freeze()
+        await self.send("remove", id=component_id)
 
     def freeze(self):
         self._is_frozen = True
@@ -105,25 +125,28 @@ class ReactorMeta:
     async def render_diff(
         self, component: "Component", repo: Repo
     ) -> HTMLDiff | None:
-        html = await db(self.render)(component, repo)
-        if html and self._last_sent_html != (html := html.split(" ")):
-            if settings.USE_HTML_DIFF:
-                diff: HTMLDiff = []
-                for x in difflib.ndiff(self._last_sent_html, html):
-                    indicator = x[0]
-                    if indicator == " ":
-                        diff.append(1)
-                    elif indicator == "+":
-                        diff.append(x[2:])
-                    elif indicator == "-":
-                        diff.append(-1)
+        if self._skip_render:
+            self._skip_render = False
+        else:
+            html = await db(self.render)(component, repo)
+            if html and self._last_sent_html != (html := html.split(" ")):
+                if settings.USE_HTML_DIFF:
+                    diff: HTMLDiff = []
+                    for x in difflib.ndiff(self._last_sent_html, html):
+                        indicator = x[0]
+                        if indicator == " ":
+                            diff.append(1)
+                        elif indicator == "+":
+                            diff.append(x[2:])
+                        elif indicator == "-":
+                            diff.append(-1)
 
-                if diff:
-                    diff = reduce(compress_diff, diff[1:], diff[:1])
-            else:
-                diff = html  # type: ignore
-            self._last_sent_html = html
-            return diff
+                    if diff:
+                        diff = reduce(compress_diff, diff[1:], diff[:1])
+                else:
+                    diff = html  # type: ignore
+                self._last_sent_html = html
+                return diff
 
     def render(self, component: "Component", repo: Repo) -> None | SafeText:
         html = None
@@ -139,6 +162,31 @@ class ReactorMeta:
             html = html_minify(html)
         if html:
             return mark_safe(html)
+
+    async def send_dom_action(
+        self,
+        action: DomAction,
+        id: str,
+        html: SafeString,
+    ):
+        await self.send("dom_action", action=action.value, id=id, html=html)
+
+    async def scroll_into_view(
+        self,
+        id: str,
+        behavoir: t.Literal["smooth"]
+        | t.Literal["instant"]
+        | t.Literal["auto"] = "auto",
+        block: ScrollPosition = "start",
+        inline: ScrollPosition = "nearest",
+    ):
+        await self.send(
+            "scroll_into_view",
+            id=id,
+            behavoir=behavoir,
+            block=block,
+            inline=inline,
+        )
 
     async def send(self, _command: str, **kwargs: t.Any):
         if self.channel_name:
@@ -165,10 +213,10 @@ class ReactorMeta:
         for attr_name in dir(component):
             if not attr_name.startswith("_"):
                 attr = getattr(component, attr_name)
-                if iscoroutine(attr) or iscoroutinefunction(attr):
-                    attr = async_to_sync(attr)
-                context[attr_name] = attr
-
+                if not callable(attr):
+                    if iscoroutine(attr) or iscoroutinefunction(attr):
+                        attr = async_to_sync(attr)
+                    context[attr_name] = attr
         return dict(
             context,
             this=component,
@@ -351,16 +399,49 @@ class Component(BaseModel):
         await self.reactor.destroy(self.id)
 
     async def send_render(self):
-        await self.reactor.send_render(self.id)
-
-    def render(self, repo: Repo):
-        return self.reactor.render(self, repo)
-
-    def render_diff(self, repo: Repo):
-        return self.reactor.render_diff(self, repo)
+        await self.reactor.send("send_render", id=self.id)
 
     async def focus_on(self, selector: str):
         await self.reactor.send("focus_on", selector=selector)
+
+    # Dom operations
+
+    def skip_render(self):
+        self.reactor.skip_render()
+
+    def force_render(self):
+        self.reactor.force_render()
+
+    async def dom(
+        self,
+        _action: DomAction,
+        _id: str,
+        _component_class_or_template_name: t.Type["Component"] | str,
+        **kwargs,
+    ):
+        if isinstance(_component_class_or_template_name, str):
+            template = self._get_template(_component_class_or_template_name)
+            html = await db(template.render)(kwargs)
+        else:
+            from .repository import ComponentRepository
+
+            component = _component_class_or_template_name.new(
+                reactor=self.reactor.clone(),
+                user=self.user,
+                **kwargs,
+            )
+            html = await db(component._render)(
+                ComponentRepository(user=self.user)
+            )
+        await self.reactor.send_dom_action(_action, _id, html)
+
+    # Internal render operations
+
+    def _render(self, repo: Repo):
+        return self.reactor.render(self, repo)
+
+    def _render_diff(self, repo: Repo):
+        return self.reactor.render_diff(self, repo)
 
 
 class ComponentNotFound(LookupError):
