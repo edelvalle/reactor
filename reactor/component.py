@@ -87,36 +87,20 @@ class ReactorMeta:
     def freeze(self):
         self._is_frozen = True
 
-    async def redirect_to(self, to: t.Any, **kwargs: t.Any):
-        await self._redirect(to, kwargs)
-
-    async def replace_to(self, to: RedirectDestination, **kwargs: t.Any):
-        await self._redirect(to, kwargs, replace=True)
-
-    async def push_to(self, to: RedirectDestination, **kwargs: t.Any):
-        await self._push(to, kwargs)
-
-    async def send_render(self, component_id: str):
-        await self.send("render", id=component_id)
-
-    async def _redirect(
-        self,
-        to: RedirectDestination,
-        kwargs: t.Any,
-        replace: bool = False,
-    ):
+    async def redirect_to(self, to: RedirectDestination, **kwargs: t.Any):
         url = resolve_url(to, **kwargs)
         self._redirected_to = url
         if self.channel_name:
             self.freeze()
-            await self.send("redirect_to", url=url, replace=replace)
+            await self.send("url_change", command="redirect", url=url)
 
-    async def _push(self, to: RedirectDestination, kwargs: Context):
+    async def replace_to(self, to: RedirectDestination, **kwargs):
         url = resolve_url(to, **kwargs)
-        self._redirected_to = url
-        if self.channel_name:
-            self.freeze()
-            await self.send("push_page", url=url)
+        await self.send("url_change", command="replace", url=url)
+
+    async def push_to(self, to: RedirectDestination, **kwargs):
+        url = resolve_url(to, **kwargs)
+        await self.send("url_change", command="push", url=url)
 
     async def render_diff(
         self, component: "Component", repo: Repo

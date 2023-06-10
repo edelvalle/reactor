@@ -2,12 +2,9 @@ import json
 import logging
 import typing as t
 
-from channels.db import database_sync_to_async as db
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
 from django.core.signing import Signer
-from django.http.response import HttpResponse
-from django.test import Client
 from django.utils.datastructures import MultiValueDict
 
 from reactor.component import Component
@@ -90,40 +87,24 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         if component := self.repo.get(id):
             await self.send_render(component)
 
+    async def component_dom_action(self, action, id, html):
+        log.debug(f">>> DOM {action.upper()} {id}")
+        await self.send_command(action, {"id": id, "html": html})
+
+    async def component_scroll_into_view(self, id, behavoir, block, inline):
+        log.debug(f">>> SCROLL-INTO-VIEW {id}")
+        await self.send_command(
+            "scroll_into_view",
+            {"id": id, "behavoir": behavoir, "block": block, "inline": inline},
+        )
+
     async def component_focus_on(self, selector):
         log.debug(f'>>> FOCUS ON "{selector}"')
         await self.send_command("focus_on", {"selector": selector})
 
-    async def component_redirect_to(self, url: str, replace: bool = False):
-        action = "REPLACE WITH" if replace else "REDIRECT TO"
-        log.debug(f'>>> {action} "{url}"')
-        await self.send_command("visit", {"url": url, "replace": replace})
-
-    async def component_push_page(self, url: str):
-        try:
-            log.debug(f'>>> PUSH PAGE "{url}"')
-            client = Client()
-            if not isinstance(self.user, AnonymousUser):
-                await db(client.force_login)(self.user)
-            response: HttpResponse = await db(client.get)(
-                url,
-                follow=True,
-            )
-            redirects: list[tuple(str, int)] = response.redirect_chain  # type: ignore
-            if redirects:
-                page_url, _status = redirects[-1]
-            else:
-                page_url = url
-            await self.send_command(
-                "page",
-                {
-                    "url": page_url,
-                    "content": response.content.decode().strip(),
-                },
-            )
-        except Exception as e:
-            log.debug(f'>>> PUSH FAILED "{e}"')
-            await self.component_redirect_to(url)
+    async def component_url_change(self, command: str, url: str):
+        log.debug(f'>>> URL {command.upper()} "{url}"')
+        await self.send_command("url_change", {"url": url, "command": command})
 
     # Incoming messages from subscriptions
 

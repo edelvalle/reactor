@@ -52,14 +52,26 @@ class ServerConnection extends EventTarget {
         console.log("<<< FOCUS-ON", `"${selector}"`);
         document.querySelector(selector)?.focus();
         break;
-      case "visit":
-        var { url, replace } = payload;
-        if (replace) {
-          console.log("<< REPLACE", url);
-          boost.HistoryCache.replace(url);
-        } else {
-          console.log("<< VISIT", url);
-          boost.HistoryCache.load(url);
+      case "scroll_into_view":
+        var { id, behavior, block, inline } = payload;
+        window.requestAnimationFrame(() =>
+          document
+            .getElementById(id)
+            ?.scrollIntoView({ behavior, block, inline }))
+        break;
+      case "url_change":
+        var { url } = payload;
+        console.log("<< URL", payload.command, url);
+        switch (payload.command) {
+          case "redirect":
+            boost.HistoryCache.load(url);
+            break;
+          case "replace":
+            boost.HistoryCache.replace(url);
+            break;
+          case "push":
+            boost.HistoryCache.push(url);
+            break;
         }
         break;
       case "set_url_params":
@@ -101,11 +113,6 @@ class ServerConnection extends EventTarget {
         boost.HistoryCache.replace(newpath);
         break;
 
-      case "page":
-        var { url, content } = payload;
-        console.log("<< PAGE", `"${url}"`);
-        boost.HistoryCache.loadContent(url, content);
-        break;
       case "back":
         boost.HistoryCache.back();
         break;
