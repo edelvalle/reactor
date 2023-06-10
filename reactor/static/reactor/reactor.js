@@ -49,8 +49,9 @@ class ServerConnection extends EventTarget {
         break;
       case "focus_on":
         var { selector } = payload;
-        console.log("<<< FOCUS-ON", `"${selector}"`);
-        document.querySelector(selector)?.focus();
+        console.log("<<< FOCUS-ON", `"${selector}"`, document.querySelector(selector));
+        window.requestAnimationFrame(() =>
+          document.querySelector(selector)?.focus())
         break;
       case "scroll_into_view":
         var { id, behavior, block, inline } = payload;
