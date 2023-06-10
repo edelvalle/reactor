@@ -6,7 +6,6 @@ install:
 	yarn install
 	pip install --upgrade pip
 	pip install -e .[dev]
-	python setup.py develop
 
 watch-js:
 	node esbuild.conf.js -w
