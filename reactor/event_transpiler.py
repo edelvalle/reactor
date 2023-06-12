@@ -4,11 +4,11 @@ import typing as t
 from django.core.serializers.json import DjangoJSONEncoder
 from lru import LRU
 
-from .settings import TRANSPIPER_CACHE_SIZE
+from .settings import TRANSPILER_CACHE_SIZE
 
 Stack = list[t.Any]
 
-CACHE: dict[str, str | None] = LRU(TRANSPIPER_CACHE_SIZE)
+CACHE: dict[str, str | None] = LRU(TRANSPILER_CACHE_SIZE)
 
 
 def transpile(event_and_modifiers: str, command: str, kwargs: dict[str, t.Any]):
