@@ -1,2 +1,2 @@
 include reactor/templates/*.html
-include reactor/static/reactor/*.min.js
+include reactor/static/reactor/*
