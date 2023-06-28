@@ -102,13 +102,13 @@ class XCounter(Component):
 
     amount: int = 0
 
-    async def recv_inc(self):
+    async def inc(self):
         self.amount += 1
 
-    async def recv_dec(self):
+    async def dec(self):
         self.amount -= 1
 
-    async def recv_set_to(self, amount: int):
+    async def set_to(self, amount: int):
         self.amount = amount
 ```
 
