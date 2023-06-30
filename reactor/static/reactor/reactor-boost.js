@@ -26,11 +26,10 @@ if (BOOST_PAGES) {
 }
 
 function replaceBodyContent(withHtmlContent, scrollY = undefined) {
-  let html = document.createElement("html");
-  html.innerHTML = withHtmlContent;
   window.requestAnimationFrame(() => {
+    let html = new DOMParser().parseFromString(withHtmlContent, "text/html");
     document.title = html.querySelector("title")?.text ?? "";
-    document.body = html.querySelector("body");
+    Idiomorph.morph(document.body, html.body);
     if (scrollY === undefined) {
       document.querySelector("[autofocus]")?.focus();
     } else {
