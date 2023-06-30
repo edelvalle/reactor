@@ -78,16 +78,22 @@ class ServerConnection extends EventTarget {
         break;
       case "focus_on":
         var { selector } = payload;
-        console.log("<<< FOCUS-ON", `"${selector}"`, document.querySelector(selector));
+        console.log(
+          "<<< FOCUS-ON",
+          `"${selector}"`,
+          document.querySelector(selector)
+        );
         window.requestAnimationFrame(() =>
-          document.querySelector(selector)?.focus())
+          document.querySelector(selector)?.focus()
+        );
         break;
       case "scroll_into_view":
         var { id, behavior, block, inline } = payload;
         window.requestAnimationFrame(() =>
           document
             .getElementById(id)
-            ?.scrollIntoView({ behavior, block, inline }))
+            ?.scrollIntoView({ behavior, block, inline })
+        );
         break;
       case "url_change":
         var { url } = payload;
@@ -203,16 +209,9 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     }
 
     applyDiff(diff) {
-      let html = this.getHtml(diff);
       window.requestAnimationFrame(() => {
-        morphdom(this, html, {
-          onBeforeNodeAdded(node) {
-            boost.boostElement(node);
-          },
-          onElUpdated(node) {
-            boost.boostElement(node);
-          },
-        });
+        let html = this.getHtml(diff);
+        morphdom(this, html);
       });
     }
 
