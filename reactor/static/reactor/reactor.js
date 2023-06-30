@@ -1,4 +1,3 @@
-import morphdom from "morphdom";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import boost from "./reactor-boost";
 
@@ -200,7 +199,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     disconnectedCallback() {
       connection.removeEventListener("open", this.joinBind);
       connection.removeEventListener("close", this.wentOffline);
-      connection.sendLeave(this.id);
+      connection.leave();
     }
 
     join() {
@@ -208,10 +207,14 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
       connection.sendJoin(this.dataset.name, this.parentId, this.dataset.state);
     }
 
+    leave() {
+      connection.sendLeave(this.id);
+    }
+
     applyDiff(diff) {
       window.requestAnimationFrame(() => {
         let html = this.getHtml(diff);
-        morphdom(this, html);
+        boost.morph(this, html);
       });
     }
 

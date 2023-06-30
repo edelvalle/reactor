@@ -1,4 +1,31 @@
-import morphdom from "morphdom";
+import idiomorph from "idiomorph";
+
+console.log(idiomorph);
+
+function morph(oldNode, newNode) {
+  newJoiners = new Set();
+  Idiomorph.morph(oldNode, newNode, {
+    callbacks: {
+      beforeNodeMorphed: function (oldNode, newNode) {
+        if (
+          oldNode instanceof HTMLElement &&
+          newNode instanceof HTMLElement &&
+          oldNode.hasAttribute("reactor-component") &&
+          newNode.hasAttribute("reactor-component") &&
+          oldNode.id !== newNode.id
+        ) {
+          oldNode.leave();
+          newJoiners.add(newNode.id);
+        }
+      },
+      afterNodeMorphed: function (oldNode, newNode) {
+        if (newJoiners.has(oldNode.id)) {
+          oldNode.join();
+        }
+      },
+    },
+  });
+}
 
 const BOOST_PAGES = JSON.parse(
   document.querySelector("meta[name=reactor-boost]")?.dataset.enabled || "false"
@@ -30,7 +57,7 @@ if (BOOST_PAGES) {
 function replaceBodyContent(withHtmlContent, scrollY = undefined) {
   let html = new DOMParser().parseFromString(withHtmlContent, "text/html");
   document.title = html.querySelector("title")?.text ?? "";
-  morphdom(document.body, html.body);
+  morph(document.body, html.body);
   if (scrollY === undefined) {
     document.querySelector("[autofocus]")?.focus();
   } else {
@@ -95,4 +122,5 @@ window.addEventListener("popstate", (event) => {
 
 export default {
   HistoryCache: HistoryCache,
+  morph: morph,
 };
