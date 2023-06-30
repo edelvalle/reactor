@@ -1,3 +1,5 @@
+import morphdom from "morphdom";
+
 const BOOST_PAGES = JSON.parse(
   document.querySelector("meta[name=reactor-boost]")?.dataset.enabled || "false"
 );
@@ -12,7 +14,7 @@ if (BOOST_PAGES) {
       link &&
       link.href &&
       (!link.target || link.target === "_self") &&
-      link.origin == location.origin &&
+      link.origin == document.location.origin &&
       e.button === 0 && // left click only
       !e.metaKey && // open in new tab (mac)
       !e.ctrlKey && // open in new tab (win & linux)
@@ -26,16 +28,14 @@ if (BOOST_PAGES) {
 }
 
 function replaceBodyContent(withHtmlContent, scrollY = undefined) {
-  window.requestAnimationFrame(() => {
-    let html = new DOMParser().parseFromString(withHtmlContent, "text/html");
-    document.title = html.querySelector("title")?.text ?? "";
-    Idiomorph.morph(document.body, html.body);
-    if (scrollY === undefined) {
-      document.querySelector("[autofocus]")?.focus();
-    } else {
-      window.scrollTo(0, scrollY);
-    }
-  });
+  let html = new DOMParser().parseFromString(withHtmlContent, "text/html");
+  document.title = html.querySelector("title")?.text ?? "";
+  morphdom(document.body, html.body);
+  if (scrollY === undefined) {
+    document.querySelector("[autofocus]")?.focus();
+  } else {
+    window.scrollTo(0, scrollY);
+  }
 }
 
 function hasSameOriginAsDocument(url) {
@@ -53,10 +53,10 @@ class HistoryCache {
       if (hasSameOriginAsDocument(url)) {
         this.push(url);
       } else {
-        location.assign(url);
+        document.location.assign(url);
       }
     } else {
-      location.assign(url);
+      document.location.assign(url);
     }
   }
 
@@ -71,7 +71,7 @@ class HistoryCache {
         scrollY: window.scrollY,
       },
       document.title,
-      path
+      document.location.href
     );
     let response = await fetch(path);
     let content = await response.text();
@@ -88,6 +88,9 @@ window.addEventListener("popstate", (event) => {
   if (event.state?.content !== undefined) {
     replaceBodyContent(event.state.content, event.state.scrollY);
   }
+  fetch(document.location.href)
+    .then((response) => response.text())
+    .then((content) => replaceBodyContent(content));
 });
 
 export default {

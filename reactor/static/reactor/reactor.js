@@ -1,8 +1,7 @@
-import idiomorph from "idiomorph";
+import morphdom from "morphdom";
 import ReconnectingWebSocket from "reconnecting-websocket";
 import boost from "./reactor-boost";
 
-console.log(idiomorph);
 // Connection
 
 const parser = new DOMParser();
@@ -212,7 +211,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     applyDiff(diff) {
       window.requestAnimationFrame(() => {
         let html = this.getHtml(diff);
-        Idiomorph.morph(this, html, { ignoreActive: true });
+        morphdom(this, html);
       });
     }
 
