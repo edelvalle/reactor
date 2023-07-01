@@ -322,7 +322,7 @@ The implicit arguments are taken from the `form` the element handling the event 
 
 Examples:
 
-Here any event inside that component will have the implicit argument `x` being send to the backend.
+Here any event inside that component will have the implicit argument `x` being sent to the backend.
 
 ```html
 <div {% tag_header %}>
