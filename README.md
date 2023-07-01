@@ -325,7 +325,7 @@ Examples:
 Here any event inside that component will have the implicit argument `x` being send to the backend.
 
 ```html
-<div {% tag-header %}>
+<div {% tag_header %}>
   <input name="x"/>
   <button {% on "click" "submit" %}>Send</button>
 </div>
@@ -334,7 +334,7 @@ Here any event inside that component will have the implicit argument `x` being s
 Here any `submit_x` will send `x`, and `submit_y` will send just `y`.
 
 ```html
-<div {% tag-header %}>
+<div {% tag_header %}>
   <input name="x"/>
   <button {% on "click" "submit_x" %}>Send</button>
   <form>
