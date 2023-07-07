@@ -199,7 +199,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     disconnectedCallback() {
       connection.removeEventListener("open", this.joinBind);
       connection.removeEventListener("close", this.wentOffline);
-      connection.leave();
+      this.leave();
     }
 
     join() {
