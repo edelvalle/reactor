@@ -314,7 +314,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
 }
 
 connection.open();
-debounceTimeouts = {};
+var debounceTimeout = undefined;
 
 window.reactor = {
   /**
@@ -334,15 +334,14 @@ window.reactor = {
 
   /**
    * Debounce a function call
-   * @param {String} delayName
    * @param {Number} delay
    * @returns
    */
-  debounce(delayName, delay) {
+  debounce(delay) {
     return (f) => {
       return (...args) => {
-        clearTimeout(debounceTimeouts[delayName]);
-        debounceTimeouts[delayName] = setTimeout(() => f(...args), delay);
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => f(...args), delay);
       };
     };
   },

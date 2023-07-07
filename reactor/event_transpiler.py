@@ -53,10 +53,9 @@ class Modifiers:
 
     @classmethod
     def debounce(cls, code: str, stack: Stack):
-        name = stack.pop()
-        delay = stack.pop()
+        delay = int(stack.pop())
         code = cls._add_curly(code)
-        return f"reactor.debounce('{name}', {delay})(() => {code})()"
+        return f"reactor.debounce({delay})(() => {code})()"
 
     @staticmethod
     def prevent(code: str, stack: Stack):
