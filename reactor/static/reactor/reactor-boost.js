@@ -5,6 +5,7 @@ console.log(idiomorph);
 function morph(oldNode, newNode) {
   newJoiners = new Set();
   Idiomorph.morph(oldNode, newNode, {
+    ignoreActive: true,
     callbacks: {
       beforeNodeMorphed: function (oldNode, newNode) {
         if (
