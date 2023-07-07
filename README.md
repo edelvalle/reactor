@@ -303,7 +303,7 @@ Misc:
   - `prevent`: calls `event.preventDefault()`
   - `stop`: calls `event.StopPropagation()`
   - `ctrl`, `alt`, `shift`, `meta`: continues processing the event if any of those keys is pressed
-  - `debounce`: debounces the event, it needs a name for the debounce group and a delay in milliseconds. Example: `keypress.debounce.100.search`.
+  - `debounce`: debounces the event, it needs a delay in milliseconds. Example: `keypress.debounce.100`.
   - `key.<keycode>`: continues processing the event if the key with `keycode` is pressed
   - `enter`: alias for `key.enter`
   - `tab`: alias for `key.tab`
