@@ -1,31 +1,7 @@
-import idiomorph from "idiomorph";
-
-console.log(idiomorph);
+import morphdom from "morphdom";
 
 function morph(oldNode, newNode) {
-  newJoiners = new Set();
-  Idiomorph.morph(oldNode, newNode, {
-    ignoreActive: true,
-    callbacks: {
-      beforeNodeMorphed: function (oldNode, newNode) {
-        if (
-          oldNode instanceof HTMLElement &&
-          newNode instanceof HTMLElement &&
-          oldNode.hasAttribute("reactor-component") &&
-          newNode.hasAttribute("reactor-component") &&
-          oldNode.id !== newNode.id
-        ) {
-          oldNode.leave();
-          newJoiners.add(newNode.id);
-        }
-      },
-      afterNodeMorphed: function (oldNode, newNode) {
-        if (newJoiners.has(oldNode.id)) {
-          oldNode.join();
-        }
-      },
-    },
-  });
+  morphdom(oldNode, newNode);
 }
 
 const BOOST_PAGES = JSON.parse(

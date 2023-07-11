@@ -52,22 +52,24 @@ class ServerConnection extends EventTarget {
         console.log(`<<< ${command.toUpperCase()}`, id);
         html = parser.parseFromString(html, "text/html").body.firstChild;
         var element = document.getElementById(id);
-        switch (command) {
-          case "append":
-            element?.append(html);
-            break;
-          case "prepend":
-            element?.prepend(html);
-            break;
-          case "insert_after":
-            element?.after(html);
-            break;
-          case "insert_before":
-            element?.before(html);
-            break;
-          case "replace_with":
-            element?.replaceWith(html);
-            break;
+        if (element) {
+          switch (command) {
+            case "append":
+              element.append(html);
+              break;
+            case "prepend":
+              element.prepend(html);
+              break;
+            case "insert_after":
+              element.after(html);
+              break;
+            case "insert_before":
+              element.before(html);
+              break;
+            case "replace_with":
+              boost.morph(element, html);
+              break;
+          }
         }
         break;
       case "remove":
@@ -156,7 +158,8 @@ class ServerConnection extends EventTarget {
     }
   }
 
-  sendJoin(name, parent_id, state) {
+  sendJoin(name, component_id, parent_id, state) {
+    console.log(">>> JOIN", name, component_id);
     this._send("join", { name, parent_id, state });
   }
 
@@ -204,7 +207,12 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
 
     join() {
       this.classList.remove("reactor-disconnected");
-      connection.sendJoin(this.dataset.name, this.parentId, this.dataset.state);
+      connection.sendJoin(
+        this.dataset.name,
+        this.id,
+        this.parentId,
+        this.dataset.state
+      );
     }
 
     leave() {
@@ -234,7 +242,8 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
         }
       }
       this._lastReceivedHtml = fragments;
-      return fragments.join(" ");
+      let html = fragments.join(" ");
+      return parser.parseFromString(html, "text/html").body.firstChild;
     }
 
     /**
