@@ -75,10 +75,12 @@ class ReactorMeta:
 
     def __init__(
         self,
+        params: dict[str, t.Any],
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
         parent_id: str | None = None,
     ):
+        self.params = params
         self.channel_name = channel_name
         self.channel_layer = channel_layer
         self.parent_id = parent_id
@@ -89,6 +91,7 @@ class ReactorMeta:
 
     def clone(self):
         return type(self)(
+            params=self.params,
             channel_name=self.channel_name,
             channel_layer=self.channel_layer,
         )
@@ -262,7 +265,6 @@ class Component(BaseModel):
     _templates: dict[str, Template] = {}
     _fqn: str
     _tag_name: str
-    _url_params: t.Mapping[str, str] = {}  # local_attr_name -> url_param_name
 
     # HTML tag that this component extends
     _extends = "div"
@@ -339,6 +341,7 @@ class Component(BaseModel):
         cls,
         _component_name: str,
         state: ComponentState,
+        params: dict[str, t.Any],
         user: AnonymousUser | AbstractBaseUser | None = None,
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
@@ -356,6 +359,7 @@ class Component(BaseModel):
         instance = cls._all[_component_name].new(
             user=user or AnonymousUser(),
             reactor=ReactorMeta(
+                params=params,
                 channel_name=channel_name,
                 channel_layer=channel_layer,
                 parent_id=parent_id,
@@ -431,7 +435,7 @@ class Component(BaseModel):
                 **kwargs,
             )
             html = await db(component._render)(
-                ComponentRepository(user=self.user)
+                ComponentRepository(user=self.user, params=self.reactor.params)
             )
         await self.reactor.send_dom_action(_action, _id, html)
 

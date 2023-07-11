@@ -23,6 +23,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         await super().connect()
         self.subscriptions = set()
+        self.query_stirng: str = ""
         self.repo = ComponentRepository(
             user=self.user,
             channel_name=self.channel_name,
@@ -55,11 +56,15 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         else:
             if created:
                 await self.send_render(component)
-            await self.update_to_which_channels_im_subscribed_to()
+            await self.after_mutation_schores()
 
     async def command_leave(self, id):
         log.debug(f"<<< LEAVE {id}")
         self.repo.remove(id)
+
+    async def command_query_string(self, qs: str):
+        self.query_string = qs
+        self.repo.set_query_string(qs)
 
     async def command_user_event(
         self, id, command, implicit_args, explicit_args
@@ -70,7 +75,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         log.debug(f"<<< USER-EVENT {id} {command} {kwargs}")
         component = await self.repo.dispatch_event(id, command, kwargs)
         await self.send_render(component)
-        await self.update_to_which_channels_im_subscribed_to()
+        await self.after_mutation_schores()
 
     # Component commands
 
@@ -132,7 +137,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         for component in self.repo.components_subscribed_to(channel):
             await getattr(component, receiver)(channel, **kwargs)
             await self.send_render(component)
-        await self.update_to_which_channels_im_subscribed_to()
+        await self.after_mutation_schores()
 
     # Reply to front-end
 
@@ -144,14 +149,13 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 "render",
                 {"id": component.id, "diff": diff},
             )
-            if url_params := {
-                param: getattr(component, attr)
-                for attr, param in component._url_params.items()
-            }:
-                await self.send_command("set_url_params", url_params)
 
     async def send_command(self, command, payload):
         await self.send_json({"command": command, "payload": payload})
+
+    async def after_mutation_schores(self):
+        await self.update_to_which_channels_im_subscribed_to()
+        await self.send_query_string()
 
     async def update_to_which_channels_im_subscribed_to(self):
         if self.channel_layer is not None and self.channel_name is not None:
@@ -170,3 +174,10 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 )
 
             self.subscriptions = subscriptions
+
+    async def send_query_string(self):
+        new_qs = self.repo.get_query_string()
+        if self.query_string != new_qs:
+            self.query_string = new_qs
+            log.debug(f">>> QS {new_qs}")
+            await self.send_command("set_query_string", {"qs": new_qs})

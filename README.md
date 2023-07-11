@@ -146,21 +146,47 @@ Add:
 ```python
 ...
 
-class XCounter(Component):
-  _url_params = {"amount": "counter_amount"}  # local attr -> get parameter name
+class SearchList(Component):
+  query: str = ""
 
+  @classmethod
+  def new(cls, reactor: ReactorMeta, **kwargs):
+    # read the query parameter and initialize the object with that parameter
+    kwargs.setdefault("query", reactor.params.get("query", ""))
+    return cls(reactor=reactor, **kwargs)
+
+  async def filter_results(self, query: str):
+    self.query = query
+    # update the query string in the browser
+    self.reactor.params["query"] = query
 ...
 ```
 
-This will make it so when everytime amount is updated the URL will get [replaced](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) updating the GET parameter `?&counter_amount=20` (in case counter=20). So the user can copy that URL and share it, or navigate back to it and you can retrieve that GET parameter and restore the state of the component.
+This will make that everytime that method gets called the query string on the browser will get updated to include "query=blahblah". Never replace the `self.reactor.params`, mutate it instead.
 
-```html
-...
-<body>
-  {% component 'XCounter' amount=request.GET.counter_amount|default:0 %}
-</body>
-...
+Here is another example, suppose you have a list of items that can be expanded, like nodes in a tree view:
+
+```python
+class Node(Component):
+    _extends = "li"
+    name: str
+    expanded: bool = False
+
+    @classmethod
+    def new(cls, reactor: ReactorMeta, id: str, **kwargs):
+        kwargs["expanded"] = id in reactor.params.get("expanded.json", [])
+        return cls(reactor=reactor, id=id, **kwargs)
+
+    async def toggle_expanded(self):
+        self.expanded = not self.expanded
+        expanded = self.reactor.params.setdefault("expanded.json", [])
+        if self.expanded:
+            expanded.append(self.id)
+        elif self.id in expanded:
+            expanded.remove(self.id)
 ```
+
+Here `expanded.json` is a list of the expanded nodes. Notice the `.json` this indicates that the value of this key should be encoded/decoded to/from JSON, so just put there JSON serializable stuff.
 
 ## Settings:
 
@@ -251,7 +277,6 @@ Instead use the class method `new` to create the instance.
 - `_extends`: (default: `"div"`) Tag name HTML element the component extends. (Each component is a HTML5 component so it should extend some HTML tag)
 - `_template_name`: Contains the path of the template of the component.
 - `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
-- `_url_params`: (default: `{}`) Indicates which local attribute should be persisted in the URL as a GET parameter, being the key a local attribute name and the value the name of the GET parameter that will contain the value of the local attribute.
 
 #### Subscriptions
 

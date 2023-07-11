@@ -1,4 +1,7 @@
+import json
+import typing as t
 from functools import reduce
+from urllib.parse import parse_qsl, urlencode
 
 from channels.db import database_sync_to_async as db
 from channels.layers import BaseChannelLayer
@@ -14,13 +17,40 @@ class ComponentRepository:
     def __init__(
         self,
         user: AnonymousUser | AbstractBaseUser | None = None,
+        params: dict[str, t.Any] | None = None,
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
     ):
+        self.params = params or {}
         self.channel_name = channel_name
         self.channel_layer = channel_layer
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
+
+    @staticmethod
+    def extract_params(qs: str):
+        return {
+            key: json.loads(value) if key.endswith(".json") else value
+            for key, value in parse_qsl(qs)
+        }
+
+    def set_query_string(self, qs: str):
+        params = self.extract_params(qs)
+
+        # remove old keys
+        for key in list(self.params.keys()):
+            if key not in params:
+                self.params.pop(key)
+
+        self.params.update(params)
+
+    def get_query_string(self) -> str:
+        return urlencode(
+            {
+                key: json.dumps(value) if key.endswith(".json") else value
+                for key, value in self.params.items()
+            }
+        )
 
     def get(self, component_id: str) -> Component | None:
         return self.components.get(component_id)
@@ -40,6 +70,7 @@ class ComponentRepository:
             component = Component._build(
                 name,
                 state,
+                params=self.params,
                 user=self.user,
                 channel_name=self.channel_name,
                 channel_layer=self.channel_layer,

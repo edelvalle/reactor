@@ -10,6 +10,15 @@ const BOOST_PAGES = JSON.parse(
 
 console.log("BOOST_PAGES", BOOST_PAGES);
 
+class NavEvents extends EventTarget {
+  send() {
+    console.log("LOAD", document.location.href);
+    this.dispatchEvent(new Event("newLocation"));
+  }
+}
+
+let navEvent = new NavEvents();
+
 if (BOOST_PAGES) {
   document.addEventListener("click", (e) => {
     let link = e.target;
@@ -31,10 +40,8 @@ if (BOOST_PAGES) {
   });
 }
 
-function replaceBodyContent(withHtmlContent, scrollY = undefined) {
-  let html = new DOMParser().parseFromString(withHtmlContent, "text/html");
-  document.title = html.querySelector("title")?.text ?? "";
-  morph(document.body, html.body);
+function replaceBodyContent(newBody, scrollY = undefined) {
+  document.body.innerHTML = newBody;
   if (scrollY === undefined) {
     document.querySelector("[autofocus]")?.focus();
   } else {
@@ -69,18 +76,26 @@ class HistoryCache {
   }
 
   static async push(path) {
+    if (document.body == null) debugger;
     history.replaceState(
       {
-        content: document.body.outerHTML,
+        content: document.body.innerHTML,
         scrollY: window.scrollY,
       },
       document.title,
       document.location.href
     );
-    let response = await fetch(path);
-    let content = await response.text();
     history.pushState({}, document.title, path);
-    replaceBodyContent(content);
+    this.replaceContentFromUrl(path);
+  }
+
+  static async replaceContentFromUrl(url) {
+    navEvent.send();
+    let response = await fetch(url);
+    let content = await response.text();
+    let doc = new DOMParser().parseFromString(content, "text/html");
+    document.title = doc.querySelector("title")?.text ?? "";
+    replaceBodyContent(doc.body.innerHTML);
   }
 
   static replace(path) {
@@ -89,15 +104,15 @@ class HistoryCache {
 }
 
 window.addEventListener("popstate", (event) => {
+  navEvent.send();
   if (event.state?.content !== undefined) {
     replaceBodyContent(event.state.content, event.state.scrollY);
   }
-  fetch(document.location.href)
-    .then((response) => response.text())
-    .then((content) => replaceBodyContent(content));
+  HistoryCache.replaceContentFromUrl(document.location.href);
 });
 
 export default {
   HistoryCache: HistoryCache,
   morph: morph,
+  navEvent: navEvent,
 };

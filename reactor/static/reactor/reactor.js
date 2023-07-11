@@ -18,6 +18,7 @@ class ServerConnection extends EventTarget {
 
     this.socket.addEventListener("open", () => {
       console.log("WS: OPEN");
+      this.sendQueryString();
       this.dispatchEvent(new Event("open"));
     });
 
@@ -28,6 +29,10 @@ class ServerConnection extends EventTarget {
     this.socket.addEventListener("close", () => {
       console.log("WS: CLOSE");
       this.dispatchEvent(new Event("close"));
+    });
+
+    boost.navEvent.addEventListener("newLocation", () => {
+      this.sendQueryString();
     });
   }
 
@@ -111,43 +116,12 @@ class ServerConnection extends EventTarget {
             break;
         }
         break;
-      case "set_url_params":
-        console.log("<< SET URL PARAMS", payload);
 
-        // "?a=x&..." -> "a=x&..."
-        let searchParams = document.location.search.slice(1);
-
-        let currentParams = {};
-        if (searchParams.length) {
-          currentParams = searchParams
-            .split("&") // ["a=x", ...]
-            .map((x) => x.split("=")) // [["a", "x"], ...]
-            .reduce(
-              // {a: "x", ...}
-              (acc, data) => {
-                let [key, value] = data;
-                acc[key] =
-                  value === undefined ? undefined : decodeURIComponent(value);
-                return acc;
-              },
-              {}
-            );
-        }
-
-        let newParams = Object.entries(
-          Object.assign(currentParams, payload)
-        ).map((key_value) => {
-          let [key, value] = key_value;
-          return (
-            key + (value === undefined ? "" : `=${encodeURIComponent(value)}`)
-          );
-        });
-
-        let newpath = document.location.pathname;
-        if (newParams.length) {
-          newpath += "?" + newParams.join("&");
-        }
-        boost.HistoryCache.replace(newpath);
+      case "set_query_string":
+        var { qs } = payload;
+        qs = qs.length ? `?${qs}` : "";
+        console.log("<< SET URL PARAMS", qs);
+        boost.HistoryCache.replace(document.location.pathname + qs);
         break;
 
       case "back":
@@ -156,6 +130,13 @@ class ServerConnection extends EventTarget {
       default:
         console.error(`Unknown command "${command}"`, payload);
     }
+  }
+
+  sendQueryString() {
+    // "?a=x&..." -> "a=x&..."
+    let qs = document.location.search.slice(1);
+    console.log("QS", qs);
+    this._send("query_string", { qs });
   }
 
   sendJoin(name, component_id, parent_id, state) {
@@ -242,8 +223,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
         }
       }
       this._lastReceivedHtml = fragments;
-      let html = fragments.join(" ");
-      return parser.parseFromString(html, "text/html").body.firstChild;
+      return fragments.join(" ");
     }
 
     /**

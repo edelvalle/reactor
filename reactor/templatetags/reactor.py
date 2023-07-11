@@ -47,10 +47,16 @@ def component(context, _name, **kwargs):
     parent: t.Optional[Component] = context.get("this")
     parent_id = parent.id if parent else None
 
-    repo: ComponentRepository = context.get(
-        "reactor_repository",
-        ComponentRepository(user=context.get("user")),
-    )
+    if (repo := context.get("reactor_repository")) is None:
+        qs = (
+            (request := context.get("request"))
+            and request.META["QUERY_STRING"]
+            or ""
+        )
+        repo = ComponentRepository(
+            user=context.get("user"),
+            params=ComponentRepository.extract_params(qs),
+        )
 
     component, _created = repo.build(_name, state=kwargs, parent_id=parent_id)
     return component._render(repo) or ""
