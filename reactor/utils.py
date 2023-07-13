@@ -1,4 +1,5 @@
 import inspect
+import logging
 import typing as t
 from collections import defaultdict
 from functools import wraps
@@ -6,6 +7,8 @@ from functools import wraps
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils.datastructures import MultiValueDict
+
+log = logging.getLogger("reactor")
 
 
 def on_commit(f: t.Callable[(...), None]):
@@ -25,6 +28,12 @@ def send_to(channel: t.Optional[str], type: str, **kwargs: t.Any):
         async_to_sync(get_channel_layer().group_send)(
             channel, dict(type=type, channel=channel, **kwargs)
         )
+
+
+@on_commit
+def send_notification(channel: str, **kwargs):
+    log.debug(f"<-> NOTIFICATION {channel} {kwargs}")
+    send_to(channel, "notification", kwargs=kwargs)
 
 
 # Introspection

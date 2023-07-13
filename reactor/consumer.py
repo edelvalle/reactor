@@ -126,7 +126,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
 
     async def notification(self, data):
         # The signature here is coupled to:
-        #   `reactor.component.broadcast`
+        #   `reactor.utils.send_notification`
         await self._dispatch_notifications(
             "notification", data["channel"], data["kwargs"]
         )
