@@ -139,9 +139,9 @@ class ServerConnection extends EventTarget {
     this._send("query_string", { qs });
   }
 
-  sendJoin(name, component_id, parent_id, state) {
+  sendJoin(name, component_id, parent_id, state, children) {
     console.log(">>> JOIN", name, component_id);
-    this._send("join", { name, parent_id, state });
+    this._send("join", { name, parent_id, state, children });
   }
 
   sendLeave(id) {
@@ -177,7 +177,7 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
     connectedCallback() {
       connection.addEventListener("open", this.joinBind);
       connection.addEventListener("close", this.wentOffline);
-      this.join();
+      this.join(true);
     }
 
     disconnectedCallback() {
@@ -186,14 +186,23 @@ for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
       this.leave();
     }
 
-    join() {
+    join(force = false) {
       this.classList.remove("reactor-disconnected");
-      connection.sendJoin(
-        this.dataset.name,
-        this.id,
-        this.parentId,
-        this.dataset.state
-      );
+      if (force || !this.parentId) {
+        let children = Array.from(
+          this.querySelectorAll("[reactor-component]")
+        ).reduce((children, element) => {
+          children[element.id] = [element.dataset.name, element.dataset.state];
+          return children;
+        }, {});
+        connection.sendJoin(
+          this.dataset.name,
+          this.id,
+          this.parentId,
+          this.dataset.state,
+          children
+        );
+      }
     }
 
     leave() {

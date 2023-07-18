@@ -6,6 +6,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
 from django.core.signing import Signer
 from django.utils.datastructures import MultiValueDict
+
 from reactor.component import Component
 
 from . import serializer
@@ -13,6 +14,11 @@ from .repository import ComponentRepository
 from .utils import parse_request_data
 
 log = logging.getLogger("reactor")
+
+
+class ChildComponent(t.TypedDict):
+    name: str
+    state: str
 
 
 class ReactorConsumer(AsyncJsonWebsocketConsumer):
@@ -42,12 +48,21 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         name: str,
         state: str,
         parent_id: str | None = None,
+        children: dict[str, ChildComponent] | None = None,
     ):
-        decoded_state: dict[str, t.Any] = json.loads(Signer().unsign(state))
+        signer = Signer()
+        decoded_state: dict[str, t.Any] = json.loads(signer.unsign(state))
+        decoded_children: dict[str, tuple[str, dict[str, t.Any]]] = {
+            id: (name, json.loads(signer.unsign(state)))
+            for id, (name, state) in (children or {}).items()
+        }
         log.debug(f"<<< JOIN {name} {decoded_state}")
         try:
             component, created = await self.repo.join(
-                name, decoded_state, parent_id=parent_id
+                name,
+                decoded_state,
+                children=decoded_children,
+                parent_id=parent_id,
             )
         except Exception as e:
             log.exception(e)

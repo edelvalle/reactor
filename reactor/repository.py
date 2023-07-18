@@ -10,6 +10,8 @@ from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from .component import Component, MessagePayload
 from .utils import filter_parameters
 
+ChildrenRepo = dict[str, tuple[str, dict[str, t.Any]]]
+
 
 class ComponentRepository:
     user: AnonymousUser | AbstractBaseUser
@@ -26,6 +28,7 @@ class ComponentRepository:
         self.channel_layer = channel_layer
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
+        self.children: ChildrenRepo = {}
 
     @staticmethod
     def extract_params(qs: str):
@@ -56,33 +59,50 @@ class ComponentRepository:
         return self.components.get(component_id)
 
     def build(
-        self, name: str, state: MessagePayload, parent_id: str | None = None
+        self,
+        name: str,
+        state: MessagePayload,
+        parent_id: str | None = None,
+        override_state: bool = True,
     ) -> tuple[Component, bool]:
-        if (component_id := state.get("id")) and (
-            component := self.components.get(component_id)
-        ):
-            # override with the passed state but preserve the rest of the state
-            for key, value in state.items():
-                setattr(component, key, value)
-            component.reactor.parent_id = parent_id
-            return component, False
-        else:
-            component = Component._build(
-                name,
-                state,
-                params=self.params,
-                user=self.user,
-                channel_name=self.channel_name,
-                channel_layer=self.channel_layer,
-                parent_id=parent_id,
-            )
-            return self.register_component(component), True
+        if component_id := state.get("id"):
+            if component := self.components.get(component_id):
+                if override_state:
+                    # override with the passed state but preserve the rest of the state
+                    for key, value in state.items():
+                        setattr(component, key, value)
+                    component.reactor.parent_id = parent_id
+                return component, False
+            elif child := self.children.get(component_id):
+                child_name, child_state = child
+                if child_name == name:
+                    state = child_state | state
+                    self.children.pop(component_id)
+
+        component = Component._build(
+            name,
+            state,
+            params=self.params,
+            user=self.user,
+            channel_name=self.channel_name,
+            channel_layer=self.channel_layer,
+            parent_id=parent_id,
+        )
+        return self.register_component(component), True
 
     async def join(
-        self, name: str, state: MessagePayload, parent_id: str | None = None
+        self,
+        name: str,
+        state: MessagePayload,
+        parent_id: str | None = None,
+        children: ChildrenRepo | None = None,
     ) -> tuple[Component, bool]:
+        self.children.update(children or {})
         component, created = await db(self.build)(
-            name, state, parent_id=parent_id
+            name,
+            state,
+            parent_id=parent_id,
+            override_state=False,
         )
         if created:
             await component.joined()
