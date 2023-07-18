@@ -1,29 +1,38 @@
+from enum import StrEnum
+
 from reactor.component import Component
 from reactor.schemas import DomAction, ModelAction
 
 from .models import Item, ItemQS
 
 
+class Showing(StrEnum):
+    ALL = "all"
+    COMPLETED = "completed"
+    ACTIVE = "active"
+
+
 class XTodoList(Component):
     _template_name = "todo/list.html"
     _subscriptions = {"item"}
-    _url_params = {"showing": "showing"}
 
-    showing: str = "all"
+    showing: Showing = Showing.ALL
     new_item: str = ""
 
-    items: ItemQS
+    @property
+    def queryset(self):
+        return Item.objects.all()
 
-    async def mutation(self, channel, action: ModelAction, instance: Item):
-        if action == ModelAction.CREATED:
-            await self.dom(
-                DomAction.APPEND,
-                "todo-list",
-                XTodoItem,
-                id=f"item-{instance.id}",
-                item=instance,
-            )
-        self.skip_render()
+    @property
+    def items(self):
+        match self.showing:
+            case Showing.ALL:
+                qs = self.queryset
+            case Showing.COMPLETED:
+                qs = self.queryset.filter(completed=True)
+            case Showing.ACTIVE:
+                qs = self.queryset.filter(completed=False)
+        return qs
 
     @property
     async def all_items_are_completed(self):
@@ -31,16 +40,16 @@ class XTodoList(Component):
             await self.items.completed().acount()
         )
 
+    async def toggle_all(self, toggle_all: bool):
+        await self.items.aupdate(completed=toggle_all)
+
     async def add(self, new_item: str):
         await Item.objects.acreate(text=new_item)
-        self.skip_render()
         self.new_item = ""
 
-    async def show(self, showing: str):
+    async def show(self, showing: Showing):
         self.showing = showing
-
-    async def toggle_all(self, itoggle_all: bool = False):
-        await self.reactor.redirect_to("/to-index")
+        self.reactor.params["showing"] = showing
 
     async def clear_completed(self):
         await self.items.completed().adelete()
@@ -64,21 +73,12 @@ class XTodoItem(Component):
 
     item: Item
     editing: bool = False
-    showing: str = "all"
 
     async def mutation(self, channel, instance: Item, action):
         if action == ModelAction.DELETED:
             await self.destroy()
         else:
             self.item = instance
-
-    @property
-    def is_visible(self):
-        return (
-            self.showing == "all"
-            or (self.showing == "completed" and self.item.completed)
-            or (self.showing == "active" and not self.item.completed)
-        )
 
     async def delete(self):
         await self.item.adelete()
@@ -98,5 +98,4 @@ class XTodoItem(Component):
     async def save(self, text):
         self.item.text = text
         await self.item.asave()
-        self.editing = False
         self.editing = False

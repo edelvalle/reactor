@@ -12,7 +12,6 @@ def todo(request):
         "todo.html",
         context={
             "title": "todo",
-            "items": Item.objects.all(),
             "showing": request.GET.get("showing", "all"),
         },
     )
