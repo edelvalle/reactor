@@ -47,7 +47,6 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         self,
         name: str,
         state: str,
-        parent_id: str | None = None,
         children: dict[str, ChildComponent] | None = None,
     ):
         signer = Signer()
@@ -62,7 +61,6 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 name,
                 decoded_state,
                 children=decoded_children,
-                parent_id=parent_id,
             )
         except Exception as e:
             log.exception(e)

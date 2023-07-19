@@ -78,12 +78,10 @@ class ReactorMeta:
         params: dict[str, t.Any],
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
-        parent_id: str | None = None,
     ):
         self.params = params
         self.channel_name = channel_name
         self.channel_layer = channel_layer
-        self.parent_id = parent_id
         self._is_frozen: bool = False
         self._redirected_to: str | None = None
         self._last_sent_html: list[str] = []
@@ -336,7 +334,6 @@ class Component(BaseModel):
         user: AnonymousUser | AbstractBaseUser | None = None,
         channel_name: str | None = None,
         channel_layer: BaseChannelLayer | None = None,
-        parent_id: str | None = None,
     ) -> "Component":
         if _component_name not in cls._all:
             raise ComponentNotFound(
@@ -353,7 +350,6 @@ class Component(BaseModel):
                 params=params,
                 channel_name=channel_name,
                 channel_layer=channel_layer,
-                parent_id=parent_id,
             ),
             **state,
         )

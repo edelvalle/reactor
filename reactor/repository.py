@@ -62,7 +62,6 @@ class ComponentRepository:
         self,
         name: str,
         state: MessagePayload,
-        parent_id: str | None = None,
         override_state: bool = True,
     ) -> tuple[Component, bool]:
         if component_id := state.get("id"):
@@ -71,7 +70,6 @@ class ComponentRepository:
                     # override with the passed state but preserve the rest of the state
                     for key, value in state.items():
                         setattr(component, key, value)
-                    component.reactor.parent_id = parent_id
                 return component, False
             elif child := self.children.get(component_id):
                 child_name, child_state = child
@@ -86,7 +84,6 @@ class ComponentRepository:
             user=self.user,
             channel_name=self.channel_name,
             channel_layer=self.channel_layer,
-            parent_id=parent_id,
         )
         return self.register_component(component), True
 
@@ -94,14 +91,12 @@ class ComponentRepository:
         self,
         name: str,
         state: MessagePayload,
-        parent_id: str | None = None,
         children: ChildrenRepo | None = None,
     ) -> tuple[Component, bool]:
         self.children.update(children or {})
         component, created = await db(self.build)(
             name,
             state,
-            parent_id=parent_id,
             override_state=False,
         )
         if created:
