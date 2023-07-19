@@ -5,7 +5,6 @@ from functools import reduce
 from uuid import uuid4
 
 from asgiref.sync import async_to_sync
-from channels.db import database_sync_to_async as db
 from channels.layers import BaseChannelLayer
 from django.apps import apps
 from django.contrib.auth.base_user import AbstractBaseUser
@@ -21,6 +20,7 @@ from pydantic.fields import Field, ModelField
 
 from . import settings, utils
 from .schemas import DomAction, ModelAction
+from .utils import db
 
 if settings.USE_HMIN:
     try:
@@ -192,12 +192,16 @@ class ReactorMeta:
     async def deffer(
         self,
         _id: str,
-        _f: t.Callable[P, None],
+        _f: t.Callable[P, t.Coroutine],
         *args: P.args,
         **kwargs: P.kwargs,
     ):
         await self.send(
-            "dispatch_event", id=_id, command=_f.__name__, kwargs=kwargs
+            "dispatch_event",
+            command=_f.__name__,
+            id=_id,
+            args=args,
+            kwargs=kwargs,
         )
 
     async def send(self, _command: str, **kwargs: t.Any):
@@ -416,11 +420,11 @@ class Component(BaseModel):
 
     async def deffer(
         self,
-        _f: t.Callable[P, None],
+        _f: t.Callable[P, t.Coroutine],
         *args: P.args,
         **kwargs: P.kwargs,
     ):
-        await self.reactor.deffer(self.id, _f, **kwargs)
+        await self.reactor.deffer(self.id, _f, *args, **kwargs)
 
     def freeze(self):
         self.reactor.freeze()
