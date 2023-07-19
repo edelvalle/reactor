@@ -23,6 +23,7 @@ class ServerConnection {
     this.socket.addEventListener("open", () => {
       console.log("WS: OPEN");
       this.sendQueryString();
+      this.components = {};
       this.joinAllComponents();
     });
 
@@ -35,7 +36,10 @@ class ServerConnection {
       this.components = {};
       document
         .querySelectorAll("[reactor-component]")
-        .forEach((element) => element.classList.add("reactor-disconnected"));
+        .forEach((element) => {
+          element.classList.add("reactor-disconnected")
+          element.dataset.isLive = "false";
+        });
     });
 
     boost.navEvent.addEventListener("newLocation", () => {
@@ -43,18 +47,7 @@ class ServerConnection {
     });
 
     boost.navEvent.addEventListener("newContent", () => {
-      let registeredIds = new Set(Object.keys(this.components));
-      for (let element of document.querySelectorAll("[reactor-component]")) {
-        if (!registeredIds.delete(element.id)) {
-          let component = new ReactorComponent(element.id);
-          this.components[element.id] = component;
-          component.join(true);
-        }
-      }
-      for (let id of registeredIds.keys()) {
-        delete this.components[id];
-        this.sendLeave(id);
-      }
+      this.joinAllComponents()
     });
   }
 
@@ -63,13 +56,20 @@ class ServerConnection {
   }
 
   joinAllComponents() {
-    this.components = {};
-    document.querySelectorAll("[reactor-component]").forEach((el) => {
-      el.classList.remove("reactor-disconnected");
-      let component = new ReactorComponent(el.id);
-      this.components[el.id] = component;
-      component.join();
-    });
+    let registeredIds = new Set(Object.keys(this.components));
+    for (let element of document.querySelectorAll("[reactor-component]")) {
+      if (registeredIds.delete(element.id)) {
+        this.components[element.id].join();
+      } else {
+        let component = new ReactorComponent(element.id);
+        this.components[element.id] = component;
+        component.join();
+      }
+    }
+    for (let id of registeredIds.keys()) {
+      delete this.components[id];
+      this.sendLeave(id);
+    }
   }
 
   _processMessage(event) {
@@ -107,8 +107,8 @@ class ServerConnection {
               boost.morph(element, html);
               break;
           }
+          boost.navEvent.sendNewContent();
         }
-        boost.navEvent.sendNewContent();
         break;
       case "remove":
         var { id } = payload;
@@ -242,28 +242,26 @@ class ReactorComponent {
     return fragments.join(" ");
   }
 
-  get parent() {
-    return this.getElemenet()?.parentElement?.closest("[reactor-component]");
-  }
 
-  join(force = false) {
-    if (force || !this.parent) {
-      let element = this.getElemenet();
-      if (element) {
-        let children = Array.from(
-          element.querySelectorAll("[reactor-component]")
-        ).reduce((children, el) => {
-          children[el.id] = [el.dataset.name, el.dataset.state];
-          return children;
-        }, {});
+  join() {
+    let element = this.getElemenet();
+    let parent = element?.parentElement?.closest("[reactor-component]");
+    if (element && element.dataset.isLive === "false" && (!parent || parent.dataset.isLive === "true")) {
+      element.dataset.isLive = "true";
+      if (this.id === "message-box") debugger;
+      let children = Array.from(
+        element.querySelectorAll("[reactor-component]")
+      ).reduce((children, el) => {
+        children[el.id] = [el.dataset.name, el.dataset.state];
+        return children;
+      }, {});
 
-        connection.sendJoin(
-          element.dataset.name,
-          element.id,
-          element.dataset.state,
-          children
-        );
-      }
+      connection.sendJoin(
+        element.dataset.name,
+        element.id,
+        element.dataset.state,
+        children
+      );
     }
   }
 

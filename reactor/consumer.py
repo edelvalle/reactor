@@ -31,6 +31,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         self.subscriptions = set()
         self.query_stirng: str = ""
         self.repo = ComponentRepository(
+            is_live=True,
             user=self.user,
             channel_name=self.channel_name,
             channel_layer=self.channel_layer,
@@ -57,7 +58,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         }
         log.debug(f"<<< JOIN {name} {decoded_state}")
         try:
-            component, created = await self.repo.join(
+            component = await self.repo.join(
                 name,
                 decoded_state,
                 children=decoded_children,
@@ -67,8 +68,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             if id := decoded_state.get("id"):
                 await self.component_remove(id)
         else:
-            if created:
-                await self.send_render(component)
+            await self.send_render(component)
             await self.after_mutation_schores()
 
     async def command_leave(self, id):
@@ -96,7 +96,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         await getattr(self, f"component_{data['command']}")(**data["kwargs"])
 
     async def component_dispatch_event(self, id, command, args, kwargs):
-        log.debug(f"<<< EVENT {id} {command} {kwargs}")
+        log.debug(f"<<< EVENT {id} {command} {args} {kwargs}")
         component = await self.repo.dispatch_event(id, command, args, kwargs)
         await self.send_render(component)
         await self.after_mutation_schores()

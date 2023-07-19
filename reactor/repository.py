@@ -18,6 +18,8 @@ class ComponentRepository:
 
     def __init__(
         self,
+        *,
+        is_live: bool,
         user: AnonymousUser | AbstractBaseUser | None = None,
         params: dict[str, t.Any] | None = None,
         channel_name: str | None = None,
@@ -29,6 +31,7 @@ class ComponentRepository:
         self.user = user or AnonymousUser()
         self.components: dict[str, Component] = {}
         self.children: ChildrenRepo = {}
+        self.is_live = is_live
 
     @staticmethod
     def extract_params(qs: str):
@@ -62,15 +65,13 @@ class ComponentRepository:
         self,
         name: str,
         state: MessagePayload,
-        override_state: bool = True,
-    ) -> tuple[Component, bool]:
+    ) -> Component:
         if component_id := state.get("id"):
             if component := self.components.get(component_id):
-                if override_state:
-                    # override with the passed state but preserve the rest of the state
-                    for key, value in state.items():
-                        setattr(component, key, value)
-                return component, False
+                # override with the passed state but preserve the rest of the state
+                for key, value in state.items():
+                    setattr(component, key, value)
+                return component
             elif child := self.children.get(component_id):
                 child_name, child_state = child
                 if child_name == name:
@@ -85,23 +86,21 @@ class ComponentRepository:
             channel_name=self.channel_name,
             channel_layer=self.channel_layer,
         )
-        return self.register_component(component), True
+        return self.register_component(component)
 
     async def join(
         self,
         name: str,
         state: MessagePayload,
         children: ChildrenRepo | None = None,
-    ) -> tuple[Component, bool]:
+    ) -> Component:
         self.children.update(children or {})
-        component, created = await db(self.build)(
+        component = await db(self.build)(
             name,
             state,
-            override_state=False,
         )
-        if created:
-            await component.joined()
-        return component, created
+        await component.joined()
+        return component
 
     def register_component(self, component: Component):
         self.components[component.id] = component

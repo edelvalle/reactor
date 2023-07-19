@@ -21,15 +21,18 @@ def reactor_header():
 @register.simple_tag(takes_context=True)
 def tag_header(context):
     component: Component = context["this"]
+    repo: ComponentRepository = context["reactor_repository"]
     return format_html(
         (
             'id="{id}" '
             'data-name="{name}" '
             'data-state="{state}" '
+            'data-is-live="{is_live}" '
             "reactor-component"
         ),
         id=component.id,
         name=component._name,
+        is_live=str(repo.is_live).lower(),
         state=Signer().sign(component.json(exclude=component._exclude_fields)),
     )
 
@@ -43,11 +46,13 @@ def component(context, _name, **kwargs):
             or ""
         )
         repo = ComponentRepository(
+            is_live=False,
             user=context.get("user"),
             params=ComponentRepository.extract_params(qs),
         )
+        context["reactor_repository"] = repo
 
-    component, _created = repo.build(_name, state=kwargs)
+    component = repo.build(_name, state=kwargs)
     return component._render(repo) or ""
 
 

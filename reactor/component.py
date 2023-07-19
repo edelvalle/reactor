@@ -448,7 +448,11 @@ class Component(BaseModel):
                 **kwargs,
             )
             html = await db(component._render)(
-                ComponentRepository(user=self.user, params=self.reactor.params)
+                ComponentRepository(
+                    is_live=False,
+                    user=self.user,
+                    params=self.reactor.params,
+                )
             )
         await self.reactor.send_dom_action(_action, _id, html)
 
