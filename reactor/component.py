@@ -189,6 +189,17 @@ class ReactorMeta:
             inline=inline,
         )
 
+    async def deffer(
+        self,
+        _id: str,
+        _f: t.Callable[P, None],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ):
+        await self.send(
+            "dispatch_event", id=_id, command=_f.__name__, kwargs=kwargs
+        )
+
     async def send(self, _command: str, **kwargs: t.Any):
         if self.channel_name:
             await self.send_to(self.channel_name, _command, **kwargs)
@@ -402,6 +413,17 @@ class Component(BaseModel):
 
     def force_render(self):
         self.reactor.force_render()
+
+    async def deffer(
+        self,
+        _f: t.Callable[P, None],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ):
+        await self.reactor.deffer(self.id, _f, **kwargs)
+
+    def freeze(self):
+        self.reactor.freeze()
 
     async def dom(
         self,

@@ -10,10 +10,12 @@ from django.utils.datastructures import MultiValueDict
 
 log = logging.getLogger("reactor")
 
+P = t.ParamSpec("P")
 
-def on_commit(f: t.Callable[(...), None]):
+
+def on_commit(f: t.Callable[P, None]):
     @wraps(f)
-    def wrapper(*args: t.Any, **kwargs: t.Any):
+    def wrapper(*args: P.args, **kwargs: P.kwargs):
         from django.db.transaction import on_commit  # type: ignore
 
         on_commit(lambda: f(*args, **kwargs))

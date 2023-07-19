@@ -110,11 +110,11 @@ class ComponentRepository:
     def remove(self, id):
         self.components.pop(id, None)
 
-    async def dispatch_event(self, id, command, kwargs):
+    async def dispatch_event(self, id, command, args, kwargs):
         assert not command.startswith("_")
         component = self.components[id]
         handler = getattr(component, command)
-        await handler(**filter_parameters(handler, kwargs))
+        await handler(*args, **filter_parameters(handler, kwargs))
         return component
 
     def components_subscribed_to(self, channel):

@@ -60,12 +60,12 @@ In the templates where you want to use reactive components you have to load the 
 
 ```html
 {% load reactor %}
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    ... {% reactor_header %}
-  </head>
-  ...
+    <head>
+        ... {% reactor_header %}
+    </head>
+    ...
 </html>
 ```
 
@@ -123,17 +123,17 @@ And the index template being:
 
 ```html
 {% load reactor %}
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    .... {% reactor_header %}
-  </head>
-  <body>
-    {% component 'XCounter' %}
+    <head>
+        .... {% reactor_header %}
+    </head>
+    <body>
+        {% component 'XCounter' %}
 
-    <!-- or passing an initial state -->
-    {% component 'XCounter' amount=100 %}
-  </body>
+        <!-- or passing an initial state -->
+        {% component 'XCounter' amount=100 %}
+    </body>
 </html>
 ```
 
@@ -168,7 +168,6 @@ Here is another example, suppose you have a list of items that can be expanded, 
 
 ```python
 class Node(Component):
-    _extends = "li"
     name: str
     expanded: bool = False
 
@@ -219,20 +218,20 @@ REACTOR = {
 }
 ```
 
-- `TRANSPILER_CACHE_SIZE`: this is the size of an LRU dict used to cache javascript event halder transpilations.
-- `USE_HTML_DIFF`: when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth. If disabled it sends the full HTML content every time.
-- `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
-- `AUTO_BROADCAST`: Controls which signals are sent to `Component.mutation` when a model is mutated.
+-   `TRANSPILER_CACHE_SIZE`: this is the size of an LRU dict used to cache javascript event halder transpilations.
+-   `USE_HTML_DIFF`: when enabled uses `difflib` to create diffs to patch the front-end, reducing bandwidth. If disabled it sends the full HTML content every time.
+-   `REACTOR_USE_HMIN`: when enabled and django-hmin is installed will use it to minified the HTML of the components and save bandwidth.
+-   `AUTO_BROADCAST`: Controls which signals are sent to `Component.mutation` when a model is mutated.
 
 ## Back-end APIs
 
 ### Template tags and filters of `reactor` library
 
-- `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~10Kb of minified JS, compressed with gz or brotli.
-- `{% component 'Component' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `XComponent.new` method that constructs the component instance.
-- `{% on 'click' 'event_handler' param1=1 param2=2 %}`: Binds an event handler with paramters to some event. Look at [Event binding in the front-end](#event-binding-in-the-front-end)
-- `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
-- `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
+-   `{% reactor_header %}`: that includes the necessary JavaScript to make this library work. ~10Kb of minified JS, compressed with gz or brotli.
+-   `{% component 'Component' param1=1 param2=2 %}`: Renders a component by its name and passing whatever parameters you put there to the `XComponent.new` method that constructs the component instance.
+-   `{% on 'click' 'event_handler' param1=1 param2=2 %}`: Binds an event handler with paramters to some event. Look at [Event binding in the front-end](#event-binding-in-the-front-end)
+-   `cond`: Allows simple conditional presence of a string: `{% cond {'hidden': is_hidden } %}`.
+-   `class`: Use it to handle conditional classes: `<div {% class {'nav_bar': True, 'hidden': is_hidden} %}></div>`.
 
 ## Component live cycle
 
@@ -260,8 +259,8 @@ When a component or its parent has joined it can send user events to the client.
 
 Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
 
-- In case a mutation in a model occurs `Component.mutation(channel: str, action: reactor.auto_broadcast.Action, instance: Model)` will be called.
-- In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
+-   In case a mutation in a model occurs `Component.mutation(channel: str, action: reactor.auto_broadcast.Action, instance: Model)` will be called.
+-   In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
 
 ### Disconnection
 
@@ -274,32 +273,32 @@ Instead use the class method `new` to create the instance.
 
 ##### Rendering
 
-- `_extends`: (default: `"div"`) Tag name HTML element the component extends. (Each component is a HTML5 component so it should extend some HTML tag)
-- `_template_name`: Contains the path of the template of the component.
-- `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
+-   `_template_name`: Contains the path of the template of the component.
+-   `_exclude_fields`: (default: `{"user", "reactor"}`) Which fields to exclude from state serialization during rendering
 
 #### Subscriptions
 
-- `_subscriptions`: (default: `set()`) Defines which channels is this component subscribed to.
-- `mutation(channel, action, instance)` Called when autobroadcast is enabled and a model you are subscribed to changes.
-- `notification(channel, **kwargs)` Called when `reactor.component.broadcast(channel, **kwargs)` is used to send an arbitrary notification to components.
+-   `_subscriptions`: (default: `set()`) Defines which channels is this component subscribed to.
+-   `mutation(channel, action, instance)` Called when autobroadcast is enabled and a model you are subscribed to changes.
+-   `notification(channel, **kwargs)` Called when `reactor.component.broadcast(channel, **kwargs)` is used to send an arbitrary notification to components.
 
 #### Actions
 
-- `destroy()`: Removes the component from the interface.
-- `focus_on(selector: str)`: Makes the front-end look for that `selector` and run `.focus()` on it.
-- `skip_render()`: Prevents the component from being rendered once.
-- `send_render()`: Send a signal to request render the component ahead of time.
-- `dom(_action: DomAction, id: str, component_or_template, **kwargs)`: Can append, prepend, insert befor or after certain HTMLElement ID in the dom, the component or template, rendered using the `kwargs`.
-- `freeze()`: Prevents the component from being rendered again.
-- `reactor.redirect_to(to, **kwargs)`: Changes the URL of the front-end and triggers a page load for that new URL
-- `reactor.replace_to(to, **kwargs)`: Changes the current URL for another one.
-- `reactor.push_to(to, **kwargs)`: Changs the URL of the front-end adding a new history entry but does not fetch the new URL from the backend.
-- `reactor.send(_channel: str, _topic: str, **kwargs)`: Sends a message over a channel.
+-   `destroy()`: Removes the component from the interface.
+-   `focus_on(selector: str)`: Makes the front-end look for that `selector` and run `.focus()` on it.
+-   `skip_render()`: Prevents the component from being rendered once.
+-   `send_render()`: Send a signal to request render the component ahead of time.
+-   `dom(_action: DomAction, id: str, component_or_template, **kwargs)`: Can append, prepend, insert befor or after certain HTMLElement ID in the dom, the component or template, rendered using the `kwargs`.
+-   `freeze()`: Prevents the component from being rendered again.
+-   `deffer(f, *args, **kwargs)`: Send a message to the current event to be executed after the current function is executed.
+-   `reactor.redirect_to(to, **kwargs)`: Changes the URL of the front-end and triggers a page load for that new URL
+-   `reactor.replace_to(to, **kwargs)`: Changes the current URL for another one.
+-   `reactor.push_to(to, **kwargs)`: Changs the URL of the front-end adding a new history entry but does not fetch the new URL from the backend.
+-   `reactor.send(_channel: str, _topic: str, **kwargs)`: Sends a message over a channel.
 
 ## Front-end APIs
 
-- `reactor.send(element, name, args)`: Sends a reactor user event to `element`, where `name` is the event handler and `args` is a JS object containing the implicit arguments of the call.
+-   `reactor.send(element, name, args)`: Sends a reactor user event to `element`, where `name` is the event handler and `args` is a JS object containing the implicit arguments of the call.
 
 ### Event binding in the front-end
 
@@ -314,31 +313,31 @@ The format for event and modifiers is `@<event>[.modifier1][.modifier2][.modifie
 
 Examples:
 
-- `{% on "click.ctrl" "decrement" %}>`: Clicking with Ctrl pressed calls "decrement".
-- `{% on "click" "increment" amount=1 %}>`: Clicking calls "increment" passing `amount=1` as argument.
+-   `{% on "click.ctrl" "decrement" %}>`: Clicking with Ctrl pressed calls "decrement".
+-   `{% on "click" "increment" amount=1 %}>`: Clicking calls "increment" passing `amount=1` as argument.
 
 Misc:
 
-- `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
-- `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html#Event-Modifiers):
+-   `event`: is the name of the HTMLElement event: `click`, `blur`, `change`, `keypress`, `keyup`, `keydown`...
+-   `modifier`: can be concatenated after the event name and represent actions or conditions to be met before the event execution. This is very similar as [how VueJS does event binding](https://vuejs.org/v2/guide/events.html#Event-Modifiers):
 
-  Available modifiers are:
+    Available modifiers are:
 
-  - `inlinejs`: takes the next "event handler" argument as literal JS code.
-  - `prevent`: calls `event.preventDefault()`
-  - `stop`: calls `event.StopPropagation()`
-  - `ctrl`, `alt`, `shift`, `meta`: continues processing the event if any of those keys is pressed
-  - `debounce`: debounces the event, it needs a delay in milliseconds. Example: `keypress.debounce.100`.
-  - `key.<keycode>`: continues processing the event if the key with `keycode` is pressed
-  - `enter`: alias for `key.enter`
-  - `tab`: alias for `key.tab`
-  - `delete`: alias for `key.delete`
-  - `backspace`: alias for `key.backspace`
-  - `space`: alias for `key. `
-  - `up`: alias for `key.arrowup`
-  - `down`: alias for `key.arrowdown`
-  - `left`: alias for `key.arrowleft`
-  - `right`: alias for `key.arrowright`
+    -   `inlinejs`: takes the next "event handler" argument as literal JS code.
+    -   `prevent`: calls `event.preventDefault()`
+    -   `stop`: calls `event.StopPropagation()`
+    -   `ctrl`, `alt`, `shift`, `meta`: continues processing the event if any of those keys is pressed
+    -   `debounce`: debounces the event, it needs a delay in milliseconds. Example: `keypress.debounce.100`.
+    -   `key.<keycode>`: continues processing the event if the key with `keycode` is pressed
+    -   `enter`: alias for `key.enter`
+    -   `tab`: alias for `key.tab`
+    -   `delete`: alias for `key.delete`
+    -   `backspace`: alias for `key.backspace`
+    -   `space`: alias for `key. `
+    -   `up`: alias for `key.arrowup`
+    -   `down`: alias for `key.arrowdown`
+    -   `left`: alias for `key.arrowleft`
+    -   `right`: alias for `key.arrowright`
 
 #### Event arguments
 

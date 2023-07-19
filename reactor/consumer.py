@@ -86,7 +86,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
             parse_request_data(MultiValueDict(implicit_args)), **explicit_args
         )
         log.debug(f"<<< USER-EVENT {id} {command} {kwargs}")
-        component = await self.repo.dispatch_event(id, command, kwargs)
+        component = await self.repo.dispatch_event(id, command, [], kwargs)
         await self.send_render(component)
         await self.after_mutation_schores()
 
@@ -94,6 +94,12 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
 
     async def message_from_component(self, data):
         await getattr(self, f"component_{data['command']}")(**data["kwargs"])
+
+    async def component_dispatch_event(self, id, command, args, kwargs):
+        log.debug(f"<<< EVENT {id} {command} {kwargs}")
+        component = await self.repo.dispatch_event(id, command, args, kwargs)
+        await self.send_render(component)
+        await self.after_mutation_schores()
 
     async def component_remove(self, id):
         log.debug(f">>> REMOVE {id}")
