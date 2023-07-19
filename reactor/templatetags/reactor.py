@@ -15,13 +15,7 @@ register = template.Library()
 
 @register.inclusion_tag("reactor_header.html")
 def reactor_header():
-    return {
-        "components": [
-            {"tag_name": component._tag_name, "extends": component._extends}
-            for component in Component._all.values()
-        ],
-        "BOOST_PAGES": settings.BOOST_PAGES,
-    }
+    return {"BOOST_PAGES": settings.BOOST_PAGES}
 
 
 @register.simple_tag(takes_context=True)
@@ -29,13 +23,11 @@ def tag_header(context):
     component: Component = context["this"]
     return format_html(
         (
-            'is="{tag_name}" '
             'id="{id}" '
             'data-name="{name}" '
             'data-state="{state}" '
             "reactor-component"
         ),
-        tag_name=component._tag_name,
         id=component.id,
         name=component._name,
         state=Signer().sign(component.json(exclude=component._exclude_fields)),
@@ -44,9 +36,6 @@ def tag_header(context):
 
 @register.simple_tag(takes_context=True)
 def component(context, _name, **kwargs):
-    parent: t.Optional[Component] = context.get("this")
-    parent_id = parent.id if parent else None
-
     if (repo := context.get("reactor_repository")) is None:
         qs = (
             (request := context.get("request"))
@@ -58,7 +47,7 @@ def component(context, _name, **kwargs):
             params=ComponentRepository.extract_params(qs),
         )
 
-    component, _created = repo.build(_name, state=kwargs, parent_id=parent_id)
+    component, _created = repo.build(_name, state=kwargs)
     return component._render(repo) or ""
 
 

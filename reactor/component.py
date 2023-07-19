@@ -264,10 +264,6 @@ class Component(BaseModel):
     _template_name: str = ...  # type: ignore
     _templates: dict[str, Template] = {}
     _fqn: str
-    _tag_name: str
-
-    # HTML tag that this component extends
-    _extends = "div"
 
     # fields to exclude from the component state during serialization
     _exclude_fields = {"user", "reactor"}
@@ -298,11 +294,6 @@ class Component(BaseModel):
             cls._name = name
             # Fully qualified name
             cls._fqn = f"{cls.__module__}.{name}"
-
-            # Compote a valid HTML tag from the component name
-            name = "".join([("-" + c if c.isupper() else c) for c in name])
-            name = name.strip("-").lower()
-            cls._tag_name = "x-" + name
 
         for attr_name in vars(cls):
             attr = getattr(cls, attr_name)

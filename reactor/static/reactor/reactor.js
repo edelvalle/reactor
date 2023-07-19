@@ -5,7 +5,11 @@ import boost from "./reactor-boost";
 
 const parser = new DOMParser();
 
-class ServerConnection extends EventTarget {
+class ServerConnection {
+  constructor() {
+    this.components = {};
+  }
+
   open(path = "__reactor__") {
     let protocol = location.protocol.replace("http", "ws");
     this.socket = new ReconnectingWebSocket(
@@ -19,7 +23,7 @@ class ServerConnection extends EventTarget {
     this.socket.addEventListener("open", () => {
       console.log("WS: OPEN");
       this.sendQueryString();
-      this.dispatchEvent(new Event("open"));
+      this.joinAllComponents();
     });
 
     this.socket.addEventListener("message", (event) =>
@@ -28,16 +32,44 @@ class ServerConnection extends EventTarget {
 
     this.socket.addEventListener("close", () => {
       console.log("WS: CLOSE");
-      this.dispatchEvent(new Event("close"));
+      this.components = {};
+      document
+        .querySelectorAll("[reactor-component]")
+        .forEach((element) => element.classList.add("reactor-disconnected"));
     });
 
     boost.navEvent.addEventListener("newLocation", () => {
       this.sendQueryString();
     });
+
+    boost.navEvent.addEventListener("newContent", () => {
+      let registeredIds = new Set(Object.keys(this.components));
+      for (let element of document.querySelectorAll("[reactor-component]")) {
+        if (!registeredIds.delete(element.id)) {
+          let component = new ReactorComponent(element.id);
+          this.components[element.id] = component;
+          component.join(true);
+        }
+      }
+      for (let id of registeredIds.keys()) {
+        delete this.components[id];
+        this.sendLeave(id);
+      }
+    });
   }
 
   get isOpen() {
     return this.socket?.readyState == ReconnectingWebSocket.OPEN;
+  }
+
+  joinAllComponents() {
+    this.components = {};
+    document.querySelectorAll("[reactor-component]").forEach((el) => {
+      el.classList.remove("reactor-disconnected");
+      let component = new ReactorComponent(el.id);
+      this.components[el.id] = component;
+      component.join();
+    });
   }
 
   _processMessage(event) {
@@ -46,7 +78,7 @@ class ServerConnection extends EventTarget {
       case "render":
         var { id, diff } = payload;
         console.log("<<< RENDER", id);
-        document.getElementById(id)?.applyDiff(diff);
+        this.components[id]?.applyDiff(diff);
         break;
       case "append":
       case "prepend":
@@ -76,11 +108,13 @@ class ServerConnection extends EventTarget {
               break;
           }
         }
+        boost.navEvent.sendNewContent();
         break;
       case "remove":
         var { id } = payload;
         console.log("<<< REMOVE", id);
         document.getElementById(id)?.remove();
+        boost.navEvent.sendNewContent();
         break;
       case "focus_on":
         var { selector } = payload;
@@ -139,9 +173,9 @@ class ServerConnection extends EventTarget {
     this._send("query_string", { qs });
   }
 
-  sendJoin(name, component_id, parent_id, state, children) {
+  sendJoin(name, component_id, state, children) {
     console.log(">>> JOIN", name, component_id);
-    this._send("join", { name, parent_id, state, children });
+    this._send("join", { name, state, children });
   }
 
   sendLeave(id) {
@@ -163,152 +197,123 @@ class ServerConnection extends EventTarget {
 
 let connection = new ServerConnection();
 
-for ({ dataset } of document.querySelectorAll("meta[name=reactor-component]")) {
-  let baseElement = document.createElement(dataset.extends);
+class ReactorComponent {
+  /**
+   * Returns the id of the parent component
+   *
+   * @param {HTMLElement} el
+   */
+  constructor(id) {
+    this.id = id;
+    this.lastReceivedHtml = [];
+  }
 
-  class ReactorComponent extends baseElement.constructor {
-    constructor(...args) {
-      super(...args);
-      this._lastReceivedHtml = [];
-      this.joinBind = () => this.join();
-      this.wentOffline = () => this.classList.add("reactor-disconnected");
+  getElemenet() {
+    return document.getElementById(this.id);
+  }
+
+  applyDiff(diff) {
+    window.requestAnimationFrame(() => {
+      let el = this.getElemenet();
+      if (el) {
+        let html = this.getHtml(diff);
+        boost.morph(el, html);
+        boost.navEvent.sendNewContent();
+      }
+    });
+  }
+
+  getHtml(diff) {
+    let fragments = [];
+    let cursor = 0;
+    for (let fragment of diff) {
+      if (typeof fragment === "string") {
+        fragments.push(fragment);
+      } else if (fragment < 0) {
+        cursor -= fragment;
+      } else {
+        fragments.push(
+          ...this.lastReceivedHtml.slice(cursor, cursor + fragment)
+        );
+        cursor += fragment;
+      }
     }
+    this.lastReceivedHtml = fragments;
+    return fragments.join(" ");
+  }
 
-    connectedCallback() {
-      connection.addEventListener("open", this.joinBind);
-      connection.addEventListener("close", this.wentOffline);
-      this.join(true);
-    }
+  get parent() {
+    return this.getElemenet()?.parentElement?.closest("[reactor-component]");
+  }
 
-    disconnectedCallback() {
-      connection.removeEventListener("open", this.joinBind);
-      connection.removeEventListener("close", this.wentOffline);
-      this.leave();
-    }
-
-    join(force = false) {
-      this.classList.remove("reactor-disconnected");
-      if (force || !this.parentId) {
+  join(force = false) {
+    if (force || !this.parent) {
+      let element = this.getElemenet();
+      if (element) {
         let children = Array.from(
-          this.querySelectorAll("[reactor-component]")
-        ).reduce((children, element) => {
-          children[element.id] = [element.dataset.name, element.dataset.state];
+          element.querySelectorAll("[reactor-component]")
+        ).reduce((children, el) => {
+          children[el.id] = [el.dataset.name, el.dataset.state];
           return children;
         }, {});
+
         connection.sendJoin(
-          this.dataset.name,
-          this.id,
-          this.parentId,
-          this.dataset.state,
+          element.dataset.name,
+          element.id,
+          element.dataset.state,
           children
         );
       }
     }
-
-    leave() {
-      connection.sendLeave(this.id);
-    }
-
-    applyDiff(diff) {
-      window.requestAnimationFrame(() => {
-        let html = this.getHtml(diff);
-        boost.morph(this, html);
-      });
-    }
-
-    getHtml(diff) {
-      let fragments = [];
-      let cursor = 0;
-      for (let fragment of diff) {
-        if (typeof fragment === "string") {
-          fragments.push(fragment);
-        } else if (fragment < 0) {
-          cursor -= fragment;
-        } else {
-          fragments.push(
-            ...this._lastReceivedHtml.slice(cursor, cursor + fragment)
-          );
-          cursor += fragment;
-        }
-      }
-      this._lastReceivedHtml = fragments;
-      return fragments.join(" ");
-    }
-
-    /**
-     * Returns the id of the parent component
-     *
-     * @returns {?String}
-     */
-    get parentId() {
-      return this.parentComponent?.id;
-    }
-
-    /**
-     * Returns the high parent reactor component if any is found component
-     *
-     * @returns {?ReactorComponent}
-     */
-    get parentComponent() {
-      return this.parentElement?.closest("[reactor-component]");
-    }
-
-    /**
-     * Dispatches a command to this component and sends it to the backend
-     * @param {String} command
-     * @param {Object} args
-     * @param {?HTMLFormElement} form
-     */
-    dispatch(command, args, formScope) {
-      connection.sendUserEvent(
-        this.id,
-        command,
-        this.serialize(formScope),
-        args
-      );
-    }
-
-    /**
-     * Serialize all elements inside `element` with a [name] attribute into
-     * a an array of `[element[name], element[value]]`
-     * @param {HTMLElement} element
-     */
-    serialize(element) {
-      let result = {};
-      for (let el of element.querySelectorAll("[name]")) {
-        // Avoid serializing data of a nested component
-        if (el.closest("[reactor-component]") !== this) {
-          continue;
-        }
-
-        let value = null;
-        switch (el.type.toLowerCase()) {
-          case "checkbox":
-          case "radio":
-            value = el.checked ? el.value || true : null;
-            break;
-          case "select-multiple":
-            value = el.selectedOptions.map((option) => option.value);
-            break;
-          default:
-            value = el.value;
-            break;
-        }
-
-        if (value !== null) {
-          let key = el.getAttribute("name");
-          let values = result[key] ?? [];
-          values.push(value);
-          result[key] = values;
-        }
-      }
-      return result;
-    }
   }
 
-  customElements.define(dataset.tagName, ReactorComponent, {
-    extends: dataset.extends,
-  });
+  /**
+   * Dispatches a command to this component and sends it to the backend
+   * @param {String} command
+   * @param {Object} args
+   * @param {?HTMLFormElement} form
+   */
+  dispatch(command, args, formScope) {
+    connection.sendUserEvent(this.id, command, this.serialize(formScope), args);
+  }
+
+  /**
+   * Serialize all elements inside `element` with a [name] attribute into
+   * a an array of `[element[name], element[value]]`
+   * @param {HTMLElement} element
+   */
+  serialize(element) {
+    let result = {};
+    let thisElement = this.getElemenet();
+    for (let el of element.querySelectorAll("[name]")) {
+      // Avoid serializing data of a nested component
+      if (el.closest("[reactor-component]") !== thisElement) {
+        continue;
+      }
+
+      let value = null;
+      switch (el.type.toLowerCase()) {
+        case "checkbox":
+        case "radio":
+          value = el.checked ? el.value || true : null;
+          break;
+        case "select-multiple":
+          value = el.selectedOptions.map((option) => option.value);
+          break;
+        default:
+          value = el.value;
+          break;
+      }
+
+      if (value !== null) {
+        let key = el.getAttribute("name");
+        let values = result[key] ?? [];
+        values.push(value);
+        result[key] = values;
+      }
+    }
+    return result;
+  }
 }
 
 connection.open();
@@ -322,10 +327,11 @@ window.reactor = {
    * @param {Object} args
    */
   send(element, name, args) {
-    let component = element.closest("[reactor-component]");
-    if (component !== null) {
+    let component_el = element.closest("[reactor-component]");
+    let component = connection.components[component_el.id];
+    if (component_el !== null && component !== undefined) {
       let form = element.closest("form");
-      let formScope = component.contains(form) ? form : component;
+      let formScope = component_el.contains(form) ? form : component_el;
       component.dispatch(name, args, formScope);
     }
   },

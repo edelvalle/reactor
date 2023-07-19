@@ -1,7 +1,7 @@
-import morphdom from "morphdom";
+import _load from "idiomorph";
 
 function morph(oldNode, newNode) {
-  morphdom(oldNode, newNode);
+  Idiomorph.morph(oldNode, newNode);
 }
 
 const BOOST_PAGES = JSON.parse(
@@ -11,9 +11,13 @@ const BOOST_PAGES = JSON.parse(
 console.log("BOOST_PAGES", BOOST_PAGES);
 
 class NavEvents extends EventTarget {
-  send() {
+  sendNewLocation() {
     console.log("LOAD", document.location.href);
     this.dispatchEvent(new Event("newLocation"));
+  }
+
+  sendNewContent() {
+    this.dispatchEvent(new Event("newContent"));
   }
 }
 
@@ -41,12 +45,15 @@ if (BOOST_PAGES) {
 }
 
 function replaceBodyContent(newBody, scrollY = undefined) {
-  document.body.innerHTML = newBody;
-  if (scrollY === undefined) {
-    document.querySelector("[autofocus]")?.focus();
-  } else {
-    window.scrollTo(0, scrollY);
-  }
+  window.requestAnimationFrame(() => {
+    morph(document.body, newBody);
+    if (scrollY === undefined) {
+      document.querySelector("[autofocus]")?.focus();
+    } else {
+      window.scrollTo(0, scrollY);
+    }
+    navEvent.sendNewContent();
+  });
 }
 
 function hasSameOriginAsDocument(url) {
@@ -79,7 +86,7 @@ class HistoryCache {
     if (document.body == null) debugger;
     history.replaceState(
       {
-        content: document.body.innerHTML,
+        content: document.body.outerHTML,
         scrollY: window.scrollY,
       },
       document.title,
@@ -90,12 +97,12 @@ class HistoryCache {
   }
 
   static async replaceContentFromUrl(url) {
-    navEvent.send();
+    navEvent.sendNewLocation();
     let response = await fetch(url);
     let content = await response.text();
     let doc = new DOMParser().parseFromString(content, "text/html");
     document.title = doc.querySelector("title")?.text ?? "";
-    replaceBodyContent(doc.body.innerHTML);
+    replaceBodyContent(doc.body);
   }
 
   static replace(path) {
@@ -104,7 +111,7 @@ class HistoryCache {
 }
 
 window.addEventListener("popstate", (event) => {
-  navEvent.send();
+  navEvent.sendNewLocation();
   if (event.state?.content !== undefined) {
     replaceBodyContent(event.state.content, event.state.scrollY);
   }

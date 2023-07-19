@@ -7,7 +7,7 @@
   "author": "Eddy Ernesto del Valle Pino <eddy@edelvalle.me>",
   "license": "MIT",
   "dependencies": {
-    "morphdom": "^2.7.0",
+    "idiomorph": "^0.0.8",
     "reconnecting-websocket": "^4.4.0"
   },
   "devDependencies": {
