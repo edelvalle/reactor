@@ -3,7 +3,7 @@ from enum import StrEnum
 from reactor.component import Component
 from reactor.schemas import DomAction, ModelAction
 
-from .models import Item, ItemQS
+from .models import Item
 
 
 class Showing(StrEnum):
@@ -17,7 +17,6 @@ class XTodoList(Component):
     _subscriptions = {"item"}
 
     showing: Showing = Showing.ALL
-    new_item: str = ""
 
     @property
     def queryset(self):
@@ -34,6 +33,18 @@ class XTodoList(Component):
                 qs = self.queryset.filter(completed=False)
         return qs
 
+    async def mutation(
+        self,
+        channel: str,
+        action: ModelAction,
+        instance: Item,
+    ):
+        if action == ModelAction.CREATED:
+            await self.dom(
+                DomAction.APPEND, "todo-list", XTodoItem, item=instance
+            )
+        self.skip_render()
+
     @property
     async def all_items_are_completed(self):
         return (await self.items.acount()) == (
@@ -45,7 +56,7 @@ class XTodoList(Component):
 
     async def add(self, new_item: str):
         await Item.objects.acreate(text=new_item)
-        self.new_item = ""
+        self.skip_render()
 
     async def show(self, showing: Showing):
         self.showing = showing

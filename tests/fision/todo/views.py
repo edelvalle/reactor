@@ -1,5 +1,4 @@
 from django.shortcuts import redirect, render
-from fision.todo.models import Item
 
 
 def index(request):
