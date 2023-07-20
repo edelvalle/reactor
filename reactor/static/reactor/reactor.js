@@ -34,12 +34,10 @@ class ServerConnection {
     this.socket.addEventListener("close", () => {
       console.log("WS: CLOSE");
       this.components = {};
-      document
-        .querySelectorAll("[reactor-component]")
-        .forEach((element) => {
-          element.classList.add("reactor-disconnected")
-          element.dataset.isLive = "false";
-        });
+      document.querySelectorAll("[reactor-component]").forEach((element) => {
+        element.classList.add("reactor-disconnected");
+        element.dataset.isLive = "false";
+      });
     });
 
     boost.navEvent.addEventListener("newLocation", () => {
@@ -47,7 +45,7 @@ class ServerConnection {
     });
 
     boost.navEvent.addEventListener("newContent", () => {
-      this.joinAllComponents()
+      this.joinAllComponents();
     });
   }
 
@@ -242,26 +240,26 @@ class ReactorComponent {
     return fragments.join(" ");
   }
 
-
   join() {
     let element = this.getElemenet();
-    let parent = element?.parentElement?.closest("[reactor-component]");
-    if (element && element.dataset.isLive === "false" && (!parent || parent.dataset.isLive === "true")) {
-      element.dataset.isLive = "true";
-      if (this.id === "message-box") debugger;
-      let children = Array.from(
-        element.querySelectorAll("[reactor-component]")
-      ).reduce((children, el) => {
-        children[el.id] = [el.dataset.name, el.dataset.state];
-        return children;
-      }, {});
+    if (element && element.dataset.isLive === "false") {
+      let parent = element?.parentElement?.closest("[reactor-component]");
+      if (!parent || parent.dataset.isLive === "true") {
+        element.dataset.isLive = "true";
+        let children = Array.from(
+          element.querySelectorAll("[reactor-component]")
+        ).reduce((children, el) => {
+          children[el.id] = [el.dataset.name, el.dataset.state];
+          return children;
+        }, {});
 
-      connection.sendJoin(
-        element.dataset.name,
-        element.id,
-        element.dataset.state,
-        children
-      );
+        connection.sendJoin(
+          element.dataset.name,
+          element.id,
+          element.dataset.state,
+          children
+        );
+      }
     }
   }
 
