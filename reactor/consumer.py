@@ -29,7 +29,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         await super().connect()
         self.subscriptions = set()
-        self.query_stirng: str = ""
+        self.query_string: str = ""
         self.repo = ComponentRepository(
             is_live=True,
             user=self.user,
@@ -69,7 +69,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
                 await self.component_remove(id)
         else:
             await self.send_render(component)
-            await self.after_mutation_schores()
+            await self.after_mutation_chores()
 
     async def command_leave(self, id):
         log.debug(f"<<< LEAVE {id}")
@@ -88,7 +88,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         log.debug(f"<<< USER-EVENT {id} {command} {kwargs}")
         component = await self.repo.dispatch_event(id, command, [], kwargs)
         await self.send_render(component)
-        await self.after_mutation_schores()
+        await self.after_mutation_chores()
 
     # Component commands
 
@@ -99,7 +99,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         log.debug(f"<<< EVENT {id} {command} {args} {kwargs}")
         component = await self.repo.dispatch_event(id, command, args, kwargs)
         await self.send_render(component)
-        await self.after_mutation_schores()
+        await self.after_mutation_chores()
 
     async def component_remove(self, id):
         log.debug(f">>> REMOVE {id}")
@@ -156,7 +156,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
         for component in self.repo.components_subscribed_to(channel):
             await getattr(component, receiver)(channel, **kwargs)
             await self.send_render(component)
-        await self.after_mutation_schores()
+        await self.after_mutation_chores()
 
     # Reply to front-end
 
@@ -172,7 +172,7 @@ class ReactorConsumer(AsyncJsonWebsocketConsumer):
     async def send_command(self, command, payload):
         await self.send_json({"command": command, "payload": payload})
 
-    async def after_mutation_schores(self):
+    async def after_mutation_chores(self):
         await self.update_to_which_channels_im_subscribed_to()
         await self.send_query_string()
 
