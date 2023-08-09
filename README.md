@@ -6,7 +6,7 @@ Reactor enables you to do something similar to Phoenix framework LiveView using 
 
 ## What's in the box?
 
-This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow you use all the potential of Django to create interactive front-ends. This method has its drawbacks because if connection is lost to the server the components in the front-end go busted until connection is re-established. But also has some advantages, as everything is server side rendered the interface comes already with meaningful information in the first request response, you can use all the power of Django template without limitations, if connection is lost or a component crashes, the front-end will have enough information to rebuild their state in the last good known state.
+This is no replacement for VueJS or ReactJS, or any JavaScript but it will allow you use all the potential of Django to create interactive front-ends. This method has its drawbacks because if connection is lost to the server the components in the front-end go busted until connection is re-established. But also has some advantages, as everything is server side rendered the interface comes already with meaningful information in the first request response, you can use all the power of Django template and ORM directly in your component and update the interface in real-time by subscribing to events on the server. If connection is lost or a component crashes, the front-end will have enough information to rebuild their state in the last good known state and continue to operate with the connection is restored.
 
 ## Installation and setup
 
@@ -85,7 +85,9 @@ In your app create a template `x-counter.html`:
 </div>
 ```
 
-Anatomy of a template: each component should be a [custom web component](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) that inherits from [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). They should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of re-connection to the back-end.
+Anatomy of a template: each component should be a single root tag and you need to add `{% tag_header %}` to that tag, so a set of attributes that describe the component state are added to that tag.
+
+Each component should have an `id` so the backend knows which instance is this one and a `state` attribute with the necessary information to recreate the full state of the component on first render and in case of re-connection to the back-end.
 
 Render things as usually, so you can use full Django template language, `trans`, `if`, `for` and so on. Just keep in mind that the instance of the component is referred as `this`.
 
@@ -102,13 +104,13 @@ class XCounter(Component):
 
     amount: int = 0
 
-    async def recv_inc(self):
+    async def inc(self):
         self.amount += 1
 
-    async def recv_dec(self):
+    async def dec(self):
         self.amount -= 1
 
-    async def recv_set_to(self, amount: int):
+    async def set_to(self, amount: int):
         self.amount = amount
 ```
 
