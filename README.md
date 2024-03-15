@@ -251,7 +251,7 @@ This passes those parameter there to `Component.new` that should return the comp
 
 When the component arrives to the front-end it "joins" the backend. Sends it's serialized state to the backend which rebuilds the component and calls `Component.joined`.
 
-After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was online while some change in the backend happened and the component needs to be updated.
+After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was offline while some change in the backend happened and the component needs to be updated.
 
 ### User events
 
@@ -259,7 +259,7 @@ When a component or its parent has joined it can send user events to the client.
 
 ### Subscriptions
 
-Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
+Every time a component joins or responds to an event the `Component._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
 
 -   In case a mutation in a model occurs `Component.mutation(channel: str, action: reactor.auto_broadcast.Action, instance: Model)` will be called.
 -   In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
