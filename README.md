@@ -251,7 +251,7 @@ This passes those parameter there to `Component.new` that should return the comp
 
 When the component arrives to the front-end it "joins" the backend. Sends it's serialized state to the backend which rebuilds the component and calls `Component.joined`.
 
-After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was online while some change in the backend happened and the component needs to be updated.
+After that the component is rendered and the render is sent to the front-end. Why? Because could be that the client was offline while some change in the backend happened and the component needs to be updated.
 
 ### User events
 
