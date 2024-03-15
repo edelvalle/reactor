@@ -343,12 +343,12 @@ Misc:
 
 #### Event arguments
 
-Reactor sends the implicit arguments you pass on the `on` template tag, but also sends implicit arguments.
+Reactor sends the explicit arguments you pass on the `on` template tag, but also sends implicit arguments.
 The implicit arguments are taken from the `form` the element handling the event is in or from the whole component otherwise.
 
 Examples:
 
-Here any event inside that component will have the implicit argument `x` being send to the backend.
+Here any event inside that component will have the implicit argument `x` being sent to the backend.
 
 ```html
 <div {% tag-header %}>
