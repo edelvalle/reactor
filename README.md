@@ -259,7 +259,7 @@ When a component or its parent has joined it can send user events to the client.
 
 ### Subscriptions
 
-Every time a component joins or responds to an event the `Componet._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
+Every time a component joins or responds to an event the `Component._subscriptions` set is reviewed to check if the component subscribes or not to some channel.
 
 -   In case a mutation in a model occurs `Component.mutation(channel: str, action: reactor.auto_broadcast.Action, instance: Model)` will be called.
 -   In case you broadcast a message using `reactor.component.broadcast(channel, **kwargs)` this message will be sent to any component subscribed to `channel` using the method `Component.notification(channel, **kwargs)`.
