@@ -11,6 +11,6 @@
     "reconnecting-websocket": "^4.4.0"
   },
   "devDependencies": {
-    "esbuild": "^0.13.9"
+    "esbuild": "^0.25.0"
   }
 }
